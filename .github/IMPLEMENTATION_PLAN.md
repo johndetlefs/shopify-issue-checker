@@ -1,0 +1,248 @@
+# Implementation Plan — Shopify A11y/UX “Pitch Pack” Generator (Sales Tool)
+
+**Zero code in this file.** Follow each step in order. For every step:
+
+- Confirm the **Goal** and **Requirements**.
+- Verify the **Acceptance Criteria**.
+- Paste the **Prompt to Copilot** into a new empty file or the VS Code chat and accept Copilot’s generated changes.
+
+> Target stack: TypeScript + Playwright. Uses the Playwright VS Code extension, and (optionally) the Playwright MCP server. WCAG 2.1 AA baseline. Shopify-aware guidance.
+
+---
+
+## Step 0 — Environment readiness
+
+**Goal:** Confirm local tooling is ready.
+**Requirements:** Node.js LTS, VS Code, Playwright extension installed, optional Playwright MCP server installed.
+**Acceptance Criteria:**
+
+- Node and VS Code are installed and up to date.
+- Playwright extension visible in VS Code.
+- (Optional) Playwright MCP is installed or planned.
+
+**Prompt to Copilot:**
+“Create a short checklist file named `docs/ENV_CHECKLIST.md` that lists the prerequisites for this project (Node.js LTS, VS Code, Playwright extension, optional Playwright MCP server) and includes quick verification steps.”
+
+---
+
+## Step 1 — Repository bootstrap
+
+**Goal:** Create a new project folder and initialize a Node/TS project.
+**Requirements:** New repo root directory with a basic package manifest.
+**Acceptance Criteria:**
+
+- A new folder exists for the project.
+- `package.json` created with a project name and private flag.
+
+**Prompt to Copilot:**
+“In the current folder, initialize a new Node project for a TypeScript+Playwright CLI tool named ‘shopify-a11y-sales’. Add standard metadata and mark the package as private.”
+
+---
+
+## Step 2 — TypeScript and Playwright configuration
+
+**Goal:** Establish TypeScript config and base Playwright setup.
+**Requirements:** TypeScript compiler config aligned to modern Node; Playwright ready to run headless.
+**Acceptance Criteria:**
+
+- A `tsconfig` suitable for Node/TS projects exists.
+- Playwright is configured to run Chromium in headless mode by default.
+
+**Prompt to Copilot:**
+“Generate a `tsconfig` suitable for a Node TypeScript project and add a minimal Playwright configuration for a headless Chromium run. Keep settings concise and modern.”
+
+---
+
+## Step 3 — Project scripts
+
+**Goal:** Provide easy commands to run the audit and (optionally) the MCP server.
+**Requirements:** NPM scripts for `audit` and `mcp`.
+**Acceptance Criteria:**
+
+- `npm run audit` triggers our CLI entrypoint.
+- `npm run mcp` (optional) starts a Playwright MCP server using a local config.
+
+**Prompt to Copilot:**
+“Add NPM scripts so `npm run audit` executes the CLI entrypoint, and `npm run mcp` starts the Playwright MCP server using a `.mcp/playwright.json` file. Create the MCP config with sensible defaults.”
+
+---
+
+## Step 4 — VS Code task for one-click use
+
+**Goal:** Enable non-technical execution via VS Code Task.
+**Requirements:** A VS Code task that prompts for client name and URL.
+**Acceptance Criteria:**
+
+- VS Code shows a task ‘Sales Audit: generate pitch pack’.
+- Running it prompts for a name and URL.
+
+**Prompt to Copilot:**
+“Create `.vscode/tasks.json` with a task called ‘Sales Audit: generate pitch pack’. It should prompt for `clientName` and `url` and then run the audit command with those arguments.”
+
+---
+
+## Step 5 — Source tree layout
+
+**Goal:** Create folders and placeholder files for types, checks, core utilities, runner, CLI.
+**Requirements:** `src/` structure with empty but well-named files.
+**Acceptance Criteria:**
+
+- `src/types.ts`, `src/runner.ts`, `src/cli.ts` exist.
+- `src/checks/` and `src/core/` folders exist with placeholder files.
+
+**Prompt to Copilot:**
+“Create the following empty files: `src/types.ts`, `src/runner.ts`, `src/cli.ts`, and empty placeholders in `src/checks/` (axe-core, skip-link, mega-menu) and `src/core/` (crawl, score, templates, emit). Add brief file headers describing each file’s responsibility.”
+
+---
+
+## Step 6 — Shared types
+
+**Goal:** Define core types that all modules will use.
+**Requirements:** Types for Issue, Check, CheckContext, PageTarget, and enums for severity/impact/effort.
+**Acceptance Criteria:**
+
+- `src/types.ts` contains typed definitions for issues, checks, and scoring metadata.
+- Types reflect WCAG-centric metadata and include a path reference per finding.
+
+**Prompt to Copilot:**
+“Populate `src/types.ts` with TypeScript types for an accessibility sales audit: Issue, Check, CheckContext, and PageTarget, including severity (critical/serious/moderate/minor), impact (revenue/conversion/trust/compliance), and effort (low/medium/high).”
+
+---
+
+## Step 7 — Crawl targets (sales-focused)
+
+**Goal:** Generate a short list of high-signal URLs to scan.
+**Requirements:** A function that returns ~5–6 pages (home, collections, product if found, cart, search, policy).
+**Acceptance Criteria:**
+
+- A utility returns a deduplicated list of first-party URLs.
+- It attempts to extract one or two product/collection URLs from the homepage.
+
+**Prompt to Copilot:**
+“Implement `src/core/crawl` to return a small, deduped set of scan targets for a Shopify store (home, collections, cart, search, shipping policy, plus one or two product/collection URLs discovered from the homepage). Keep it robust and fast.”
+
+---
+
+## Step 8 — Scoring logic
+
+**Goal:** Prioritize issues by severity × impact ÷ effort.
+**Requirements:** A pure function that sorts findings into a sensible order for sales conversations.
+**Acceptance Criteria:**
+
+- The function returns the same issues with a computed priority.
+- Sorting is stable and deterministic.
+
+**Prompt to Copilot:**
+“Implement `src/core/score` to compute a numeric priority using severity, impact, and effort, then sort issues descending by priority. Keep the function pure and unit-testable.”
+
+---
+
+## Step 9 — Pitch pack emission
+
+**Goal:** Emit a human-friendly pack and machine-readable summary.
+**Requirements:** Creates client-kebab `pitch-pack` folder; writes `summary.md`, `email.md`, `score.json`, and per-issue folders with `finding.md`, `prompt.md`, optional `screenshot.png` and `raw.json`.
+**Acceptance Criteria:**
+
+- Summary includes issue counts, top wins, and WCAG refs where available.
+- Email draft includes top quick wins and a clear next step.
+- Paths and filenames are kebab-case.
+
+**Prompt to Copilot:**
+“Implement `src/core/templates` and `src/core/emit` to generate a pitch pack: a summary, a short outreach email, a JSON score file, and per-issue folders with finding, prompt, optional screenshot and raw data. Use kebab-case for folder names.”
+
+---
+
+## Step 10 — Minimum checks (3)
+
+**Goal:** Provide three reliable, sales-grade checks.
+**Requirements:**
+
+1. Axe-core (top violations)
+2. Skip to content (presence/focus)
+3. Mega menu keyboard basics (open via Enter/Space; focus moves to menu items)
+   **Acceptance Criteria:**
+
+- Each check returns one or more Issues with WCAG references when known.
+- Interaction checks capture a full-page screenshot when failing.
+- Each issue includes a concise “copilot fix prompt” suitable for later use.
+
+**Prompt to Copilot:**
+“Implement three checks under `src/checks`: (a) axe-core summary of top violations with WCAG tags, (b) skip-link presence and focus behavior, and (c) mega-menu keyboard basics (open & focus into items). Each should return structured Issues with severity/impact/effort, page path, a meaningful solution summary, a concise copilot fix prompt, and a screenshot for interaction failures.”
+
+---
+
+## Step 11 — Runner and CLI
+
+**Goal:** Orchestrate crawl → checks → scoring → pitch pack; expose a CLI.
+**Requirements:** Runner accepts client name + URL, iterates pages, accumulates Issues, scores them, and emits the pack. CLI parses args and prints the output path and issue count.
+**Acceptance Criteria:**
+
+- `npm run audit -- "Client Name" https://host` completes without errors.
+- Output appears under `/clients/{client-kebab}/pitch-pack/`.
+
+**Prompt to Copilot:**
+“Wire `src/runner` to navigate the selected targets, run all checks, score the results, and call the emitter. Create `src/cli` to accept client name and URL, invoke the runner, and log the pitch-pack path and total issues found.”
+
+---
+
+## Step 12 — VS Code Task verification
+
+**Goal:** Enable one-click runs for non-CLI users.
+**Requirements:** Ensure the VS Code task prompts for values and runs the audit.
+**Acceptance Criteria:**
+
+- Running the VS Code task generates an audit identical to the CLI.
+- Inputs are validated or echoed clearly.
+
+**Prompt to Copilot:**
+“Verify `.vscode/tasks.json` provides a task ‘Sales Audit: generate pitch pack’ that prompts for clientName and url and then invokes the audit script with those values.”
+
+---
+
+## Step 13 — Copilot instructions file
+
+**Goal:** Provide Copilot with persistent context for how to behave in this repo.
+**Requirements:** A `.github/copilot-instructions.md` describing purpose, outputs, checks, standards, and constraints.
+**Acceptance Criteria:**
+
+- File exists in `.github/`.
+- Content describes the sales tool and the expected artifacts.
+
+**Prompt to Copilot:**
+“Create `.github/copilot-instructions.md` summarizing this project’s purpose (sales pitch pack), required outputs, minimal checks, WCAG 2.1 AA baseline, and how Copilot should generate fix prompts per issue to be used by a future fixer tool.”
+
+---
+
+## Step 14 — First run & QA
+
+**Goal:** Test on a real Shopify storefront (public).
+**Requirements:** Choose any publicly accessible store for a dry run.
+**Acceptance Criteria:**
+
+- Pitch pack is created.
+- `summary.md` and top 2–3 `issues/*` look persuasive and clear.
+- `email.md` reads professionally with concrete wins.
+
+**Prompt to Copilot:**
+“Prepare a QA checklist `docs/SALES_QA.md` describing how to review the generated pitch pack (clarity of summary, persuasiveness of email, correctness of WCAG references, relevance of screenshots, and actionable fix prompts).”
+
+---
+
+## Step 15 — Optional enhancements
+
+**Goal:** Add polish when time allows.
+**Requirements:** Ideas only, not mandatory for MVP.
+**Acceptance Criteria:**
+
+- A short list of enhancements exists for later sprints.
+
+**Prompt to Copilot:**
+“Draft a backlog list `docs/BACKLOG.md` with optional enhancements: additional checks (headings/landmarks, images-alt, forms-labels, focus-visible), multi-page crawling controls, PDF export, pitch-pack zipping, configurable page list, and minimal telemetry for hit-rate.”
+
+---
+
+## Completion criteria
+
+- The CLI runs via NPM and the VS Code task.
+- A pitch pack folder is produced with summary, email, score, and issue folders containing findings, prompts, and screenshots/raw data where applicable.
+- The implementation remains read-only (sales mode) and WCAG 2.1 AA aware.
