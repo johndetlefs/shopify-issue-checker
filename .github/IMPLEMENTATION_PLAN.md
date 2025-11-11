@@ -49,7 +49,21 @@
 - Playwright is configured to run Chromium in headless mode by default.
 
 **Prompt to Copilot:**
-“Generate a `tsconfig` suitable for a Node TypeScript project and add a minimal Playwright configuration for a headless Chromium run. Keep settings concise and modern.”
+"Generate a `tsconfig` suitable for a Node TypeScript project and add a minimal Playwright configuration for a headless Chromium run. Keep settings concise and modern."
+
+---
+
+## Step 2.5 — Install dependencies
+
+**Goal:** Install required packages for TypeScript, Playwright, and accessibility testing.
+**Requirements:** All necessary dependencies installed and listed in `package.json`.
+**Acceptance Criteria:**
+
+- `@playwright/test`, `@axe-core/playwright`, TypeScript, and Node types are installed.
+- Dependencies are properly categorized as dependencies or devDependencies.
+
+**Prompt to Copilot:**
+"Add and install dependencies: `@playwright/test`, `@axe-core/playwright`, `typescript`, `@types/node`, and `ts-node`. Update `package.json` with these as dependencies or devDependencies as appropriate."
 
 ---
 
@@ -88,10 +102,23 @@
 **Acceptance Criteria:**
 
 - `src/types.ts`, `src/runner.ts`, `src/cli.ts` exist.
-- `src/checks/` and `src/core/` folders exist with placeholder files.
+- `src/checks/` and `src/core/` folders exist with specific check and utility files.
 
 **Prompt to Copilot:**
-“Create the following empty files: `src/types.ts`, `src/runner.ts`, `src/cli.ts`, and empty placeholders in `src/checks/` (axe-core, skip-link, mega-menu) and `src/core/` (crawl, score, templates, emit). Add brief file headers describing each file’s responsibility.”
+"Create the following empty files with brief headers:
+
+- `src/types.ts`
+- `src/runner.ts`
+- `src/cli.ts`
+- `src/checks/axe-core.ts`
+- `src/checks/skip-link.ts`
+- `src/checks/mega-menu.ts`
+- `src/core/crawl.ts`
+- `src/core/score.ts`
+- `src/core/templates.ts`
+- `src/core/emit.ts`
+
+Each file should have a comment describing its responsibility."
 
 ---
 
@@ -112,14 +139,15 @@
 ## Step 7 — Crawl targets (sales-focused)
 
 **Goal:** Generate a short list of high-signal URLs to scan.
-**Requirements:** A function that returns ~5–6 pages (home, collections, product if found, cart, search, policy).
+**Requirements:** A function that returns ~5–6 pages (home, collections, product if found, cart, search, policy). The function should accept a Playwright `Page` instance and the base URL, return `Promise<PageTarget[]>` where `PageTarget` includes `url` and `label` (e.g., 'Homepage', 'Product: Widget Name').
 **Acceptance Criteria:**
 
 - A utility returns a deduplicated list of first-party URLs.
 - It attempts to extract one or two product/collection URLs from the homepage.
+- Navigation failures are handled gracefully with appropriate logging.
 
 **Prompt to Copilot:**
-“Implement `src/core/crawl` to return a small, deduped set of scan targets for a Shopify store (home, collections, cart, search, shipping policy, plus one or two product/collection URLs discovered from the homepage). Keep it robust and fast.”
+"Implement `src/core/crawl` to return a small, deduped set of scan targets for a Shopify store (home, collections, cart, search, shipping policy, plus one or two product/collection URLs discovered from the homepage). The function should accept a Playwright `Page` instance and the base URL, return `Promise<PageTarget[]>` where `PageTarget` includes `url` and `label`. Handle navigation failures gracefully. Keep it robust and fast."
 
 ---
 
@@ -133,7 +161,22 @@
 - Sorting is stable and deterministic.
 
 **Prompt to Copilot:**
-“Implement `src/core/score` to compute a numeric priority using severity, impact, and effort, then sort issues descending by priority. Keep the function pure and unit-testable.”
+"Implement `src/core/score` to compute a numeric priority using severity, impact, and effort, then sort issues descending by priority. Keep the function pure and unit-testable."
+
+---
+
+## Step 8.5 — Error handling & logging
+
+**Goal:** Add graceful error handling for blocked pages, timeouts, or missing elements.
+**Requirements:** A lightweight logging utility and error handling strategy for checks.
+**Acceptance Criteria:**
+
+- Checks log warnings instead of crashing when a page fails to load.
+- Missing elements (e.g., no skip-link) are treated as findings, not exceptions.
+- Logger utility provides info, warn, and error levels.
+
+**Prompt to Copilot:**
+"Create a lightweight logging utility in `src/core/logger.ts` that wraps console with severity levels (info, warn, error). Update checks and runner to log warnings when pages fail or elements are missing, and continue the audit."
 
 ---
 
@@ -164,10 +207,11 @@
 
 - Each check returns one or more Issues with WCAG references when known.
 - Interaction checks capture a full-page screenshot when failing.
-- Each issue includes a concise “copilot fix prompt” suitable for later use.
+- Each issue includes a concise "copilot fix prompt" suitable for later use.
+- Mega-menu check should locate the primary `<nav>` with role=navigation, find buttons/links that trigger submenus, simulate `Enter`/`Space` keypresses, verify focus moves into the submenu using `page.evaluate()` to check `document.activeElement`, and capture a screenshot if focus doesn't enter the submenu.
 
 **Prompt to Copilot:**
-“Implement three checks under `src/checks`: (a) axe-core summary of top violations with WCAG tags, (b) skip-link presence and focus behavior, and (c) mega-menu keyboard basics (open & focus into items). Each should return structured Issues with severity/impact/effort, page path, a meaningful solution summary, a concise copilot fix prompt, and a screenshot for interaction failures.”
+"Implement three checks under `src/checks`: (a) axe-core summary of top violations with WCAG tags, (b) skip-link presence and focus behavior, and (c) mega-menu keyboard basics (open & focus into items). Each should return structured Issues with severity/impact/effort, page path, a meaningful solution summary, a concise copilot fix prompt, and a screenshot for interaction failures."
 
 ---
 
@@ -181,7 +225,7 @@
 - Output appears under `/clients/{client-kebab}/pitch-pack/`.
 
 **Prompt to Copilot:**
-“Wire `src/runner` to navigate the selected targets, run all checks, score the results, and call the emitter. Create `src/cli` to accept client name and URL, invoke the runner, and log the pitch-pack path and total issues found.”
+"Wire `src/runner` to navigate the selected targets, run all checks, score the results, and call the emitter. Create `src/cli` to accept positional args: `ts-node src/cli.ts "Client Name" https://example.com` or fall back to interactive prompts if args are missing. Use a library like `commander` or `yargs` if helpful, or keep it minimal with `process.argv`. Log the pitch-pack path and total issues found."
 
 ---
 
@@ -222,9 +266,11 @@
 - Pitch pack is created.
 - `summary.md` and top 2–3 `issues/*` look persuasive and clear.
 - `email.md` reads professionally with concrete wins.
+- Screenshots are captured at viewport width 1280×720 (desktop) for consistency.
+- `raw.json` contains enough context to reproduce the issue (e.g., axe-core nodes, DOM snapshot for skip-link).
 
 **Prompt to Copilot:**
-“Prepare a QA checklist `docs/SALES_QA.md` describing how to review the generated pitch pack (clarity of summary, persuasiveness of email, correctness of WCAG references, relevance of screenshots, and actionable fix prompts).”
+"Prepare a QA checklist `docs/SALES_QA.md` describing how to review the generated pitch pack (clarity of summary, persuasiveness of email, correctness of WCAG references, relevance of screenshots, actionable fix prompts, screenshot viewport consistency, and completeness of raw.json data)."
 
 ---
 
