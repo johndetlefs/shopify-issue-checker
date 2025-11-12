@@ -129,7 +129,25 @@ export function generateFinding(issue: Issue): string {
 ${issue.description}
 
 ---
+${
+  issue.screenshot || issue.video || issue.codeSnippet
+    ? `
+## Visual Evidence
 
+${
+  issue.screenshot
+    ? `### Screenshot\n\n![Issue Screenshot](screenshot.png)\n\n*Red annotations added to highlight the issue - these are not present on the actual site.*\n`
+    : ""
+}${issue.video ? `### Video\n\n[View Video Recording](${issue.video})\n` : ""}${
+        issue.codeSnippet
+          ? `### Problematic Code\n\n\`\`\`html\n${issue.codeSnippet}\n\`\`\`\n`
+          : ""
+      }
+---
+
+`
+    : ""
+}
 ## Impact
 
 This issue affects:
@@ -153,11 +171,6 @@ ${issue.solution}
 ${
   issue.rawData
     ? "\n**Raw diagnostic data:** See `raw.json` for technical details.\n"
-    : ""
-}
-${
-  issue.screenshot
-    ? "\n**Screenshot:** See `screenshot.png` for visual reference.\n"
     : ""
 }
 

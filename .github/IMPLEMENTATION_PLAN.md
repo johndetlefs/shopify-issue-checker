@@ -222,23 +222,77 @@ Next steps will add real accessibility checks (axe-core, skip-link, mega-menu) t
 
 ---
 
-## Step 10 — Minimum checks (3)
+## Step 10 — Comprehensive accessibility checks ✅ (Partially Complete)
 
-**Goal:** Provide three reliable, sales-grade checks.
+**Goal:** Provide comprehensive, sales-grade checks covering keyboard, screen reader, and conversion-focused usability.
 **Requirements:**
 
-1. Axe-core (top violations)
-2. Skip to content (presence/focus)
-3. Mega menu keyboard basics (open via Enter/Space; focus moves to menu items)
-   **Acceptance Criteria:**
+1. **Axe-core (automated WCAG scan)** — Catches 50+ issues automatically
+2. **Skip to content** (presence/focus) — ✅ Complete
+3. **Mega menu comprehensive check** — ✅ Keyboard checks complete, adding screen reader + conversion checks
+
+**Acceptance Criteria:**
 
 - Each check returns one or more Issues with WCAG references when known.
 - Interaction checks capture a full-page screenshot when failing.
 - Each issue includes a concise "copilot fix prompt" suitable for later use.
-- Mega-menu check should locate the primary `<nav>` with role=navigation, find buttons/links that trigger submenus, simulate `Enter`/`Space` keypresses, verify focus moves into the submenu using `page.evaluate()` to check `document.activeElement`, and capture a screenshot if focus doesn't enter the submenu.
+- Coverage spans three categories:
+  - **Keyboard accessibility**: Navigation, focus management, skip links
+  - **Screen reader support**: ARIA attributes, alt text, semantic HTML, form labels
+  - **Conversion/usability**: Color contrast, touch targets, error messages
+
+**Implemented Checks:**
+
+### Skip-to-Content (✅ Complete)
+
+- Missing skip link detection
+- Skip link not first focusable element
+- Broken skip link target
+
+### Mega-Menu Navigation (✅ Keyboard Complete, 🔄 Expanding)
+
+**Keyboard Accessibility (✅ Complete):**
+
+1. Can't open with keyboard (Enter/Space)
+2. Can't close with Escape
+3. Too many tab stops (>30 threshold)
+4. Hover-only activation (no click/tap)
+5. Missing focus indicators (outline: none)
+6. Missing ARIA attributes (aria-expanded, aria-haspopup)
+7. Focus doesn't return to trigger on close
+8. Mobile hamburger not keyboard accessible
+9. Hover timeout too short
+10. Arrow key navigation missing
+
+**Screen Reader Support (🔄 Adding):** 11. Image alt text missing/poor (logos, category images in nav) 12. Form labels missing (search inputs in nav) 13. Empty links/buttons (icon-only without text) 14. Landmark roles missing (nav, main, complementary)
+
+**Conversion/Usability (🔄 Adding):** 15. Color contrast failures (text hard to read) 16. Touch targets too small (<44×44px) 17. CTA buttons not descriptive ("Click here" vs "Shop Now")
+
+### Axe-Core Automated Check (🔄 To Implement)
+
+- Runs automated WCAG 2.1 AA scan
+- Filters for wcag2a, wcag2aa, wcag21aa tags
+- Captures top violations with node-level details
+- Includes heading hierarchy, semantic HTML, label associations
 
 **Prompt to Copilot:**
-"Implement three checks under `src/checks`: (a) axe-core summary of top violations with WCAG tags, (b) skip-link presence and focus behavior, and (c) mega-menu keyboard basics (open & focus into items). Each should return structured Issues with severity/impact/effort, page path, a meaningful solution summary, a concise copilot fix prompt, and a screenshot for interaction failures."
+"Implement comprehensive accessibility checks under `src/checks`:
+
+1. **axe-core.ts**: Run @axe-core/playwright scan with wcag2a/aa/21aa tags, return top violations with severity/impact/effort scoring
+2. **skip-link.ts**: Check presence, position, and functionality (✅ Complete)
+3. **mega-menu.ts**: Comprehensive navigation check covering:
+   - Keyboard: navigation, focus, ARIA (✅ Complete)
+   - Screen reader: alt text on nav images, form labels, empty links, landmarks (add to existing)
+   - Usability: color contrast, touch targets, CTA clarity (add to existing)
+
+Each should return structured Issues with WCAG refs, solution summary, copilot fix prompt, and screenshot for failures."
+
+**Status:**
+
+- ✅ Skip-link check: Complete (3 issue types)
+- ✅ Mega-menu keyboard: Complete (10 issue types)
+- 🔄 Mega-menu screen reader/usability: In progress (7 additional checks)
+- ⏳ Axe-core automated scan: Pending
 
 ---
 

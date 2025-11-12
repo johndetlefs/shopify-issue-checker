@@ -12,6 +12,7 @@ import { discoverTargets } from "./core/crawl";
 import { scoreIssues } from "./core/score";
 import { emitPitchPack } from "./core/emit";
 import { skipLinkCheck } from "./checks/skip-link";
+import { megaMenuCheck } from "./checks/mega-menu";
 
 export async function runAudit(
   clientName: string,
@@ -57,7 +58,18 @@ export async function runAudit(
 
         allIssues.push(...skipLinkIssues);
 
-        // TODO: Add more checks here (axe-core, mega-menu, etc.)
+        // Run mega-menu check (only on homepage for efficiency)
+        if (target.label === "Homepage") {
+          const megaMenuIssues = await megaMenuCheck.run({
+            page,
+            baseUrl,
+            target,
+          });
+
+          allIssues.push(...megaMenuIssues);
+        }
+
+        // TODO: Add axe-core check
       } catch (error) {
         logger.warn(`Failed to check ${target.label}`, error);
         // Continue with other targets

@@ -83,19 +83,40 @@ export function emitPitchPack(
         "utf-8"
       );
 
-      // Write raw.json
-      if (issue.rawData) {
+      // Write code snippet if present
+      if (issue.codeSnippet) {
+        writeFileSync(
+          join(issueDir, "code-snippet.html"),
+          issue.codeSnippet,
+          "utf-8"
+        );
+      }
+
+      // Save screenshot from buffer if present in rawData
+      if (issue.rawData?.screenshotBuffer) {
+        const screenshotPath = join(issueDir, "screenshot.png");
+        writeFileSync(screenshotPath, issue.rawData.screenshotBuffer);
+        logger.info(`Screenshot saved for issue ${index + 1}`);
+        // Remove buffer from rawData before saving JSON
+        delete issue.rawData.screenshotBuffer;
+      }
+
+      // Save video from buffer if present in rawData
+      if (issue.rawData?.videoBuffer) {
+        const videoPath = join(issueDir, "recording.webm");
+        writeFileSync(videoPath, issue.rawData.videoBuffer);
+        logger.info(`Video saved for issue ${index + 1}`);
+        // Remove buffer from rawData before saving JSON
+        delete issue.rawData.videoBuffer;
+      }
+
+      // Re-write raw.json after removing buffers
+      if (issue.rawData && Object.keys(issue.rawData).length > 0) {
         writeFileSync(
           join(issueDir, "raw.json"),
           JSON.stringify(issue.rawData, null, 2),
           "utf-8"
         );
-      }
-
-      // Copy screenshot if present
-      if (issue.screenshot) {
-        // Screenshot path is already written by the check, just log it
-        logger.info(`Screenshot available: ${issue.screenshot}`);
       }
     });
 

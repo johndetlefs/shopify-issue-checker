@@ -28,7 +28,9 @@ export interface Issue {
   effort: Effort;
   wcagCriteria?: string[]; // e.g., ["1.3.1", "4.1.2"]
   path: string; // URL path where issue was found
-  screenshot?: string; // Path to screenshot file
+  screenshot?: string; // Path to screenshot file (relative to issue folder)
+  video?: string; // Path to video file (relative to issue folder)
+  codeSnippet?: string; // HTML/CSS code snippet showing the problem
   solution: string; // Human-readable fix description
   copilotPrompt: string; // Actionable prompt for AI-assisted fixes
   rawData?: any; // Original data from check (axe nodes, etc.)
