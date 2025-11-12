@@ -1,0 +1,30 @@
+{
+  "name": "shopify-a11y-sales",
+  "version": "1.0.0",
+  "description": "Shopify accessibility & usability sales audit tool - generates pitch packs with WCAG 2.1 AA findings",
+  "private": true,
+  "main": "src/cli.ts",
+  "scripts": {
+    "audit": "ts-node src/cli.ts",
+    "mcp": "node .mcp/server.js",
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "shopify",
+    "accessibility",
+    "wcag",
+    "audit",
+    "playwright",
+    "sales"
+  ],
+  "author": "",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^24.10.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
