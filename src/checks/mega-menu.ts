@@ -1514,6 +1514,88 @@ WCAG Success Criterion: 1.1.1 Non-text Content (Level A)`,
       });
 
       if (emptyInteractive.count > 0) {
+        // Capture screenshot with annotation for empty links/buttons
+        const emptyLinksRawData: {
+          screenshotBuffer?: Buffer;
+          examples: typeof emptyInteractive.examples;
+          count: number;
+        } = {
+          examples: emptyInteractive.examples,
+          count: emptyInteractive.count,
+        };
+
+        try {
+          // Try to expand the first mega menu to reveal hidden empty links
+          await page.evaluate(() => {
+            const menuTriggers = Array.from(
+              document.querySelectorAll(
+                'nav a, nav button, [class*="menu"] a, [class*="menu"] button'
+              )
+            );
+            // Find and hover the first menu item with a dropdown
+            const trigger = menuTriggers.find((el) =>
+              el.hasAttribute("aria-haspopup")
+            );
+            if (trigger) {
+              (trigger as HTMLElement).dispatchEvent(
+                new MouseEvent("mouseenter", { bubbles: true })
+              );
+            }
+          });
+
+          // Wait for menu to open
+          await page.waitForTimeout(500);
+
+          // Use the helper to annotate the first visible empty link/button
+          const annotationResult = await annotateElement(page, {
+            selector: "nav a, nav button, header a, header button",
+            labelText: "❌ No accessible text",
+            annotationType: "empty-link",
+            filter: (el: Element) => {
+              const textContent = (el as HTMLElement).textContent?.trim() || "";
+              const ariaLabel = el.getAttribute("aria-label");
+              const ariaLabelledby = el.getAttribute("aria-labelledby");
+              const title = el.getAttribute("title");
+
+              const hasText = textContent.length > 0;
+              const hasAccessibleName = ariaLabel || ariaLabelledby || title;
+
+              // Must be empty
+              if (hasText || hasAccessibleName) return false;
+
+              // Must be visible (not hidden, display:none, or zero-size)
+              const rect = el.getBoundingClientRect();
+              const styles = window.getComputedStyle(el);
+              const isVisible =
+                rect.width > 0 &&
+                rect.height > 0 &&
+                styles.display !== "none" &&
+                styles.visibility !== "hidden" &&
+                parseFloat(styles.opacity || "1") > 0.1;
+
+              return isVisible;
+            },
+            waitAfterAnnotation: 1500,
+          });
+
+          if (annotationResult) {
+            emptyLinksRawData.screenshotBuffer =
+              annotationResult.screenshotBuffer;
+            logger.info(
+              "Empty link annotation captured",
+              annotationResult.elementInfo
+            );
+          } else {
+            logger.warn(
+              "Could not annotate empty link - no suitable element found"
+            );
+          }
+        } catch (err) {
+          logger.warn("Failed to capture empty link screenshot", {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+
         issues.push({
           id: `mega-menu-empty-links-${Date.now()}`,
           title: "Navigation Has Empty Links/Buttons",
@@ -1523,6 +1605,9 @@ WCAG Success Criterion: 1.1.1 Non-text Content (Level A)`,
           effort: "low",
           wcagCriteria: ["2.4.4", "4.1.2"],
           path: target.url,
+          screenshot: emptyLinksRawData.screenshotBuffer
+            ? "screenshot.png"
+            : undefined,
           solution:
             "Add aria-label, aria-labelledby, or visible text to all interactive elements. Never rely solely on icons without text alternatives.",
           copilotPrompt: `You are fixing: Empty links/buttons in navigation (WCAG 2.4.4, 4.1.2)
@@ -1574,7 +1659,10 @@ Common icon-only patterns to fix:
 - ❤️ Wishlist: aria-label="Wishlist"
 
 WCAG Success Criteria: 2.4.4 Link Purpose (Level A), 4.1.2 Name, Role, Value (Level A)`,
-          rawData: emptyInteractive,
+          rawData: {
+            ...emptyLinksRawData,
+            screenshotBuffer: emptyLinksRawData.screenshotBuffer,
+          },
         });
       }
 
