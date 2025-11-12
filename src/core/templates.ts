@@ -164,7 +164,7 @@ ${
 
 ${
   issue.screenshot
-    ? `### Screenshot\n\n![Issue Screenshot](screenshot.png)\n\n*Red annotations added to highlight the issue - these are not present on the actual site.*\n`
+    ? `### Screenshot\n\n![Issue Screenshot](${issue.screenshot})\n\n*Red annotations added to highlight the issue - these are not present on the actual site.*\n`
     : ""
 }${issue.video ? `### Video\n\n[View Video Recording](${issue.video})\n` : ""}${
         issue.codeSnippet

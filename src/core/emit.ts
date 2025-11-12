@@ -69,7 +69,37 @@ export function emitPitchPack(
       const issueDir = join(issuesDir, issueSlug);
       mkdirSync(issueDir, { recursive: true });
 
-      // Write finding.md
+      // Process screenshot/video BEFORE generating templates so filenames are correct
+      // Save screenshot from buffer if present in rawData
+      if (issue.rawData?.screenshotBuffer) {
+        // Generate unique screenshot name based on issue ID
+        // Extract the descriptive part (remove timestamp suffix like -1234567890)
+        const issueIdBase = issue.id.replace(/-\d+$/, "");
+        const screenshotName = `${issueIdBase}.png`;
+        const screenshotPath = join(issueDir, screenshotName);
+        writeFileSync(screenshotPath, issue.rawData.screenshotBuffer);
+        logger.info(`Screenshot saved for issue ${index + 1}`);
+        // Update the issue's screenshot field to reference the correct filename
+        issue.screenshot = screenshotName;
+        // Remove buffer from rawData before saving JSON
+        delete issue.rawData.screenshotBuffer;
+      }
+
+      // Save video from buffer if present in rawData
+      if (issue.rawData?.videoBuffer) {
+        // Generate unique video name based on issue ID
+        const issueIdBase = issue.id.replace(/-\d+$/, "");
+        const videoName = `${issueIdBase}.webm`;
+        const videoPath = join(issueDir, videoName);
+        writeFileSync(videoPath, issue.rawData.videoBuffer);
+        logger.info(`Video saved for issue ${index + 1}`);
+        // Update the issue's video field to reference the correct filename
+        issue.video = videoName;
+        // Remove buffer from rawData before saving JSON
+        delete issue.rawData.videoBuffer;
+      }
+
+      // Write finding.md (after screenshot/video processing so filenames are correct)
       writeFileSync(
         join(issueDir, "finding.md"),
         generateFinding(issue),
@@ -90,24 +120,6 @@ export function emitPitchPack(
           issue.codeSnippet,
           "utf-8"
         );
-      }
-
-      // Save screenshot from buffer if present in rawData
-      if (issue.rawData?.screenshotBuffer) {
-        const screenshotPath = join(issueDir, "screenshot.png");
-        writeFileSync(screenshotPath, issue.rawData.screenshotBuffer);
-        logger.info(`Screenshot saved for issue ${index + 1}`);
-        // Remove buffer from rawData before saving JSON
-        delete issue.rawData.screenshotBuffer;
-      }
-
-      // Save video from buffer if present in rawData
-      if (issue.rawData?.videoBuffer) {
-        const videoPath = join(issueDir, "recording.webm");
-        writeFileSync(videoPath, issue.rawData.videoBuffer);
-        logger.info(`Video saved for issue ${index + 1}`);
-        // Remove buffer from rawData before saving JSON
-        delete issue.rawData.videoBuffer;
       }
 
       // Re-write raw.json after removing buffers

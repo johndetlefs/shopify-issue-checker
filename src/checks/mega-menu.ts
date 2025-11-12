@@ -8,6 +8,13 @@
 import { Check, CheckContext, Issue } from "../types";
 import { logger } from "../core/logger";
 import { findMainNavigation } from "../core/find-navigation";
+import {
+  defaultAnnotationConfig,
+  generateOverlayStyles,
+  generateLabelStyles,
+  calculateLabelPosition,
+} from "../core/annotation-styles";
+import { clearAnnotations, annotateElement } from "../core/annotation-utils";
 
 export const megaMenuCheck: Check = {
   name: "mega-menu",
@@ -308,10 +315,10 @@ WCAG Success Criteria: 2.1.1 Keyboard (Level A), 2.5.5 Target Size (Level AAA)`,
             await page.keyboard.press("Escape");
             await page.waitForTimeout(200);
             await page.keyboard.press("Escape");
-            await page.waitForTimeout(200);
+            await page.waitForTimeout(500);
 
+            // Remove any search overlays that might obscure navigation
             await page.evaluate(() => {
-              // Remove any overlay/backdrop elements AND search bars
               const overlays = Array.from(
                 document.querySelectorAll(
                   '[class*="overlay"], [class*="Overlay"], [class*="backdrop"], [class*="Backdrop"], ' +
@@ -321,7 +328,6 @@ WCAG Success Criteria: 2.1.1 Keyboard (Level A), 2.5.5 Target Size (Level AAA)`,
               );
               overlays.forEach((el) => {
                 const styles = window.getComputedStyle(el);
-                // Hide anything that's positioned or looks like a search
                 if (
                   styles.position === "fixed" ||
                   styles.position === "absolute" ||
@@ -333,58 +339,22 @@ WCAG Success Criteria: 2.1.1 Keyboard (Level A), 2.5.5 Target Size (Level AAA)`,
                 }
               });
             });
-            await page.waitForTimeout(500);
 
-            // Add visual annotation directly without focusing
-            // Use the already-found navigation element to find visible links
-            const annotationResult = await nav.evaluate((navElement) => {
-              // Get all links/buttons from the main navigation
-              const allNavElements = Array.from(
-                navElement.querySelectorAll("a, button")
-              );
-
-              // Helper: Check if element is truly visible (not in hidden mega menu)
-              const isTrulyVisible = (el: Element): boolean => {
-                const rect = el.getBoundingClientRect();
-                const styles = window.getComputedStyle(el);
-
-                // Must have dimensions
-                const hasSize = rect.width > 0 && rect.height > 0;
-
-                // Must be visible (not display:none, visibility:hidden, or opacity:0)
-                const isVisible =
-                  styles.display !== "none" &&
-                  styles.visibility !== "hidden" &&
-                  parseFloat(styles.opacity || "1") > 0;
-
-                // Check if any parent up to navElement is hidden (mega menu dropdown check)
-                let parent = el.parentElement;
-                while (parent && parent !== navElement) {
-                  const parentStyles = window.getComputedStyle(parent);
-                  if (
-                    parentStyles.display === "none" ||
-                    parentStyles.visibility === "hidden" ||
-                    parseFloat(parentStyles.opacity || "1") === 0
-                  ) {
-                    return false;
-                  }
-                  parent = parent.parentElement;
-                }
-
-                return hasSize && isVisible;
-              };
-
-              // Filter to only VISIBLE elements (excludes hidden mega menu dropdowns)
-              const visibleElements = allNavElements.filter(isTrulyVisible);
-
-              // Helper: Check if element is a utility link (not main navigation)
-              const isUtilityElement = (el: Element) => {
-                const text =
-                  (el as HTMLElement).innerText?.toLowerCase().trim() || "";
+            // Use the helper to annotate the first visible navigation link
+            const annotationResult = await annotateElement(page, {
+              containerLocator: nav,
+              selector: "a, button",
+              labelText: "⚠️ No visible focus indicator",
+              annotationType: "focus-indicator",
+              filter: (el: Element) => {
+                const text = (el as HTMLElement).innerText?.trim() || "";
                 const href =
                   (el as HTMLAnchorElement).href?.toLowerCase() || "";
 
-                // Filter out common utility/meta navigation
+                // Must have text content
+                if (!text || text.length === 0) return false;
+
+                // Filter out utility links
                 const utilityTexts = [
                   "search",
                   "cart",
@@ -406,180 +376,29 @@ WCAG Success Criteria: 2.1.1 Keyboard (Level A), 2.5.5 Target Size (Level AAA)`,
                   "/pages/help",
                 ];
 
-                return (
+                const isUtility =
                   utilityTexts.some(
-                    (util) => text === util || text.includes(util)
-                  ) || utilityHrefs.some((util) => href.endsWith(util))
-                );
-              };
+                    (util) =>
+                      text.toLowerCase() === util ||
+                      text.toLowerCase().includes(util)
+                  ) || utilityHrefs.some((util) => href.endsWith(util));
 
-              // Find first visible main nav link
-              const firstVisible = visibleElements.find((el) => {
-                const text = (el as HTMLElement).innerText?.trim() || "";
-
-                // Has text content
-                const hasText = text.length > 0 && text !== "";
-
-                return hasText && !isUtilityElement(el);
-              }) as HTMLElement;
-
-              if (!firstVisible) {
-                // Debug: Return info about why we couldn't find an element
-                const debugInfo = visibleElements.slice(0, 10).map((el) => {
-                  const rect = el.getBoundingClientRect();
-                  const text = (el as HTMLElement).innerText?.trim() || "";
-                  const styles = window.getComputedStyle(el);
-                  const href = (el as HTMLAnchorElement).href || "";
-                  return {
-                    text: text.substring(0, 30),
-                    textLen: text.length,
-                    top: Math.round(rect.top),
-                    width: Math.round(rect.width),
-                    height: Math.round(rect.height),
-                    display: styles.display,
-                    visibility: styles.visibility,
-                    opacity: styles.opacity,
-                    href: href.substring(0, 60),
-                    isUtility: isUtilityElement(el),
-                  };
-                });
-                return {
-                  error: "No visible element",
-                  totalElements: visibleElements.length,
-                  debugInfo,
-                };
-              }
-
-              const elementRect = firstVisible.getBoundingClientRect();
-
-              // Create a large red box overlay that surrounds the element
-              const overlay = document.createElement("div");
-              overlay.style.cssText = `
-                position: fixed;
-                left: ${elementRect.left - 15}px;
-                top: ${elementRect.top - 15}px;
-                width: ${elementRect.width + 30}px;
-                height: ${elementRect.height + 30}px;
-                border: 8px dashed red;
-                background-color: rgba(255, 0, 0, 0.15);
-                z-index: 999998;
-                pointer-events: none;
-                box-sizing: border-box;
-              `;
-              document.body.appendChild(overlay);
-              (firstVisible as any).__annotationOverlay = overlay;
-
-              // Add a floating label BELOW the element (with more spacing to avoid overlap)
-              const label = document.createElement("div");
-              label.textContent = "⚠️ No visible focus indicator";
-              label.style.cssText = `
-                position: fixed;
-                background: red;
-                color: white;
-                padding: 10px 16px;
-                border-radius: 4px;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-                font-size: 15px;
-                font-weight: 700;
-                z-index: 999999;
-                pointer-events: none;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-              `;
-
-              // Position BELOW the element with extra spacing to avoid overlapping the red box
-              const labelHeight = 40;
-              const extraSpacing = 25; // Extra gap between red box and label
-              const spaceBelow = window.innerHeight - elementRect.bottom;
-              const spaceAbove = elementRect.top;
-
-              if (spaceBelow >= labelHeight + extraSpacing + 20) {
-                // Place below with extra spacing
-                label.style.top = `${elementRect.bottom + extraSpacing}px`;
-                label.style.left = `${Math.max(10, elementRect.left)}px`;
-              } else if (spaceAbove >= labelHeight + extraSpacing + 20) {
-                // Place above with extra spacing
-                label.style.top = `${
-                  elementRect.top - labelHeight - extraSpacing
-                }px`;
-                label.style.left = `${Math.max(10, elementRect.left)}px`;
-              } else {
-                // Place to the right
-                label.style.top = `${elementRect.top}px`;
-                label.style.left = `${elementRect.right + 20}px`;
-              }
-
-              document.body.appendChild(label);
-              (firstVisible as any).__annotationLabel = label;
-
-              // Mark the element for later selection
-              (firstVisible as any).__a11yMarked = true;
-
-              return {
-                success: true,
-                elementInfo: {
-                  tag: firstVisible.tagName,
-                  text: firstVisible.innerText?.substring(0, 50),
-                  rect: elementRect,
-                },
-              };
+                return !isUtility;
+              },
+              waitAfterAnnotation: 2000,
             });
 
-            if (!annotationResult) {
-              logger.warn(
-                "Could not add annotation - no visible element found"
-              );
-            } else if (annotationResult.error) {
-              logger.warn("Could not add annotation", annotationResult);
-            } else {
+            if (annotationResult) {
+              rawData.screenshotBuffer = annotationResult.screenshotBuffer;
               logger.info(
-                "Annotation added successfully",
+                "Focus indicator annotation captured",
                 annotationResult.elementInfo
               );
+            } else {
+              logger.warn(
+                "Could not annotate focus indicator - no suitable element found"
+              );
             }
-
-            await page.waitForTimeout(2000); // Wait longer for annotation to render
-
-            // Verify annotation is still there
-            const verifyAnnotation = await page.evaluate(() => {
-              const el = Array.from(
-                document.querySelectorAll("nav a, nav button")
-              ).find((e: any) => e.__a11yMarked);
-              if (!el) return "Element not found";
-              return {
-                hasOverlay: !!(el as any).__annotationOverlay,
-                hasLabel: !!(el as any).__annotationLabel,
-                elementRect: el.getBoundingClientRect(),
-              };
-            });
-            logger.info("Annotation verification", verifyAnnotation);
-
-            // Capture screenshot with annotation
-            rawData.screenshotBuffer = await page.screenshot({
-              fullPage: false,
-            });
-            logger.info("Screenshot captured");
-
-            // Clean up annotation
-            await page.evaluate(() => {
-              const focused = Array.from(
-                document.querySelectorAll("nav a, nav button")
-              ).find((e: any) => e.__a11yMarked);
-              if (focused) {
-                // Remove overlay
-                if ((focused as any).__annotationOverlay) {
-                  (focused as any).__annotationOverlay.remove();
-                  delete (focused as any).__annotationOverlay;
-                }
-
-                // Remove label
-                if ((focused as any).__annotationLabel) {
-                  (focused as any).__annotationLabel.remove();
-                  delete (focused as any).__annotationLabel;
-                }
-
-                delete (focused as any).__a11yMarked;
-              }
-            });
 
             // Extract code snippet
             rawData.codeSnippet = await page.evaluate(() => {
@@ -1556,6 +1375,54 @@ WCAG Success Criterion: 2.5.5 Target Size (Level AAA) - relates to motor control
       });
 
       if (missingAltImages.count > 0) {
+        // Capture screenshot with annotation for missing alt text
+        const altTextRawData: {
+          screenshotBuffer?: Buffer;
+          examples: typeof missingAltImages.examples;
+          count: number;
+        } = {
+          examples: missingAltImages.examples,
+          count: missingAltImages.count,
+        };
+
+        try {
+          // Use the helper to annotate the first visible image missing alt text
+          const annotationResult = await annotateElement(page, {
+            containerLocator: nav,
+            selector: "img",
+            labelText: "❌ Missing alt text",
+            annotationType: "missing-alt",
+            filter: (el: Element) => {
+              const img = el as HTMLImageElement;
+              const alt = img.getAttribute("alt");
+              const ariaLabel = img.getAttribute("aria-label");
+              const ariaLabelledby = img.getAttribute("aria-labelledby");
+
+              const hasNoAlt = !alt || alt.trim() === "";
+              const hasNoLabel = !ariaLabel && !ariaLabelledby;
+
+              return hasNoAlt && hasNoLabel;
+            },
+            waitAfterAnnotation: 1500,
+          });
+
+          if (annotationResult) {
+            altTextRawData.screenshotBuffer = annotationResult.screenshotBuffer;
+            logger.info(
+              "Alt text annotation captured",
+              annotationResult.elementInfo
+            );
+          } else {
+            logger.warn(
+              "Could not annotate missing alt text - no suitable image found"
+            );
+          }
+        } catch (err) {
+          logger.warn("Failed to capture alt text screenshot", {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+
         issues.push({
           id: `mega-menu-missing-alt-text-${Date.now()}`,
           title: "Navigation Images Missing Alt Text",
@@ -1565,6 +1432,9 @@ WCAG Success Criterion: 2.5.5 Target Size (Level AAA) - relates to motor control
           effort: "low",
           wcagCriteria: ["1.1.1"],
           path: target.url,
+          screenshot: altTextRawData.screenshotBuffer
+            ? "screenshot.png"
+            : undefined,
           solution:
             "Add descriptive alt attributes to all navigation images. Use alt='' for purely decorative images with role='presentation'.",
           copilotPrompt: `You are fixing: Missing alt text on navigation images (WCAG 1.1.1)
@@ -1605,7 +1475,10 @@ Common mistakes to avoid:
 ❌ alt="Click here" (redundant with link)
 
 WCAG Success Criterion: 1.1.1 Non-text Content (Level A)`,
-          rawData: missingAltImages,
+          rawData: {
+            ...altTextRawData,
+            screenshotBuffer: altTextRawData.screenshotBuffer,
+          },
         });
       }
 
