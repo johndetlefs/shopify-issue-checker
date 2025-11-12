@@ -32,10 +32,134 @@ export const megaMenuCheck: Check = {
         ariaLabel: await nav.getAttribute("aria-label"),
       });
 
-      // Find navigation items that might have dropdowns/submenus
-      const menuItems = await page
+      // Track issues found
+      let hasKeyboardOpenIssue = false;
+      let hasEscapeIssue = false;
+      let hasFocusTrapIssue = false;
+      let tooManyTabStops = false;
+      let hasHoverOnlyIssue = false;
+      let hasMissingFocusIndicator = false;
+      let hasMissingAriaIssue = false;
+      let hasLinkAsButtonIssue = false;
+      let hasNonSemanticNavIssue = false;
+      let hasFocusReturnIssue = false;
+      let hasMobileHamburgerIssue = false;
+      let hasHoverTimeoutIssue = false;
+      let hasArrowKeyNavigationIssue = false;
+
+      // Check for links pretending to be buttons (runs early, independent of ARIA)
+      if (!hasLinkAsButtonIssue) {
+        const linkAsButtonItems = await page.evaluate(() => {
+          const items = Array.from(
+            document.querySelectorAll(
+              'nav a[href="#"], nav a[href="#!"], [class*="header"] a[href="#"], [class*="header"] a[href="#!"]'
+            )
+          );
+
+          const problematic = items.filter((item) => {
+            const hasDropdown =
+              item.hasAttribute("aria-haspopup") ||
+              item.hasAttribute("aria-expanded") ||
+              item
+                .closest("li")
+                ?.querySelector('ul, .submenu, .dropdown, [role="menu"]') !==
+                null;
+
+            return hasDropdown;
+          });
+
+          return {
+            count: problematic.length,
+            examples: problematic.slice(0, 3).map((item) => ({
+              text: item.textContent?.trim() || "(no text)",
+              classes: item.className,
+              hasAriaExpanded: item.hasAttribute("aria-expanded"),
+              hasAriaHaspopup: item.hasAttribute("aria-haspopup"),
+            })),
+          };
+        });
+
+        if (linkAsButtonItems.count > 0) {
+          hasLinkAsButtonIssue = true;
+          issues.push({
+            id: `mega-menu-link-as-button-${Date.now()}`,
+            title: "Navigation Dropdown Triggers Use Links Instead of Buttons",
+            description: `${linkAsButtonItems.count} navigation items use <a href="#"> for dropdown triggers instead of semantic <button> elements. This confuses screen readers (announces as "link" not "button"), doesn't work with Space key (only Enter), and violates the semantic purpose of links (navigation) vs buttons (actions).`,
+            severity: "serious",
+            impact: "trust",
+            effort: "low",
+            wcagCriteria: ["4.1.2", "2.1.1"],
+            path: target.url,
+            solution:
+              'Replace <a href="#"> with <button type="button"> for dropdown triggers. If the item also links to a category page, split into separate link and button elements.',
+            copilotPrompt: `You are fixing: Dropdown triggers using links instead of buttons (WCAG 4.1.2, 2.1.1)
+Target page: ${target.url}
+
+Navigation items with dropdowns are using <a href="#"> which is semantically incorrect.
+
+Requirements:
+1. Replace <a href="#"> with <button type="button"> for dropdown triggers
+2. Ensure Space key works (not just Enter)
+3. Fix screen reader announcement from "link" to "button"
+
+❌ BEFORE (incorrect):
+<a href="#" aria-expanded="false" aria-haspopup="true">
+  Products
+</a>
+
+✅ AFTER (correct - dropdown only):
+<button type="button" aria-expanded="false" aria-haspopup="true">
+  Products
+</button>
+
+✅ AFTER (dropdown + link to category page):
+<div class="nav-item">
+  <a href="/collections/products">Products</a>
+  <button 
+    type="button" 
+    aria-expanded="false" 
+    aria-haspopup="true"
+    aria-label="Open Products menu">
+    <svg><!-- chevron icon --></svg>
+  </button>
+</div>
+
+CSS adjustments needed:
+- Remove link-specific styles (text-decoration, color on hover)
+- Add button reset styles:
+
+button[aria-haspopup] {
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  padding: inherit;
+}
+
+button[aria-haspopup]:hover,
+button[aria-haspopup]:focus-visible {
+  /* Match your link hover styles */
+}
+
+4. Update JavaScript to handle button clicks (not link clicks)
+5. Test with keyboard: Space and Enter should both work
+6. Test with screen reader: should announce "button" not "link"
+
+Examples found: ${JSON.stringify(linkAsButtonItems.examples, null, 2)}
+
+WCAG Success Criteria: 
+- 4.1.2 Name, Role, Value (Level A) - Element role must match behavior
+- 2.1.1 Keyboard (Level A) - Space key must work on buttons`,
+            rawData: linkAsButtonItems,
+          });
+        }
+      }
+
+      // Find navigation items that might have dropdowns/submenus within the found navigation
+      const menuItems = await nav
         .locator(
-          "nav button[aria-expanded], nav a[aria-expanded], nav button[aria-haspopup], nav a[aria-haspopup], nav .menu-item, nav li"
+          "button[aria-expanded], a[aria-expanded], button[aria-haspopup], a[aria-haspopup], .menu-item, li"
         )
         .all();
 
@@ -45,20 +169,6 @@ export const megaMenuCheck: Check = {
       }
 
       logger.info(`Found ${menuItems.length} potential menu items to check`);
-
-      // Track issues found
-      let hasKeyboardOpenIssue = false;
-      let hasEscapeIssue = false;
-      let hasFocusTrapIssue = false;
-      let tooManyTabStops = false;
-      let hasHoverOnlyIssue = false;
-      let hasMissingFocusIndicator = false;
-      let hasMissingAriaIssue = false;
-      let hasNonSemanticNavIssue = false;
-      let hasFocusReturnIssue = false;
-      let hasMobileHamburgerIssue = false;
-      let hasHoverTimeoutIssue = false;
-      let hasArrowKeyNavigationIssue = false;
 
       // Check 1: Test for hover-only activation (no click handler)
       if (!hasHoverOnlyIssue) {
