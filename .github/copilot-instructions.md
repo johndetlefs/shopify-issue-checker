@@ -42,22 +42,28 @@ When asked to “run the sales audit,” produce a folder:
 
 ---
 
-## Scope & checks to run (light, sales-focused)
+## Scope & checks to run (sales-focused)
 
 Aim for **provable gaps + screenshots** over exhaustive auditing.
 
-Minimum checks:
+**Implemented checks:**
 
-1. **Axe-core top violations** (wcag2a/aa/21aa tags).
-2. **Skip to content** (presence + focus behavior).
-3. **Mega menu keyboard basics** (Enter/Space opens, focus moves to menu items).
+1. **Skip to content** (presence, position, functionality) — 3 issue types
+2. **Main navigation detection** (smart pattern-based finder with scoring)
+3. **Mega menu keyboard accessibility** — 10 issue types covering:
+   - Keyboard navigation (Enter/Space, Escape, focus management)
+   - ARIA attributes (aria-expanded, aria-haspopup)
+   - Focus indicators and return-to-trigger
+   - Mobile hamburger accessibility
+   - Hover timeouts and arrow key navigation
 
-Nice-to-have checks (add if time allows):
+**Planned checks:**
 
-- Headings & landmarks sanity.
-- Image `alt` presence where appropriate.
-- Form labels/inputs association.
-- Focus-visible styling (no outline removal).
+- **Axe-core automated scan** (wcag2a/aa/21aa tags)
+- **Navigation screen reader support** (alt text, labels, empty links, landmarks)
+- **Navigation usability** (color contrast, touch targets, CTA clarity)
+- Headings & landmarks sanity
+- Form labels/inputs association
 
 ---
 
@@ -72,13 +78,25 @@ Nice-to-have checks (add if time allows):
 
 ## Folder & code expectations
 
-The project uses **TypeScript** and **Playwright**. Minimal core files:
+The project uses **TypeScript** and **Playwright**. Core structure:
 
-- `src/types.ts` — shared types (`Issue`, `Check`, etc.)
-- `src/checks/` — each check returns `Issue[]`
-- `src/core/` — crawl targets, scoring, and emitting pitch pack
-- `src/runner.ts` — orchestrates a short crawl and runs checks
-- `src/cli.ts` — entry (Usage: `npm run audit -- "Client Name" https://domain`)
+- `src/types.ts` — shared types (`Issue`, `Check`, `CheckContext`, etc.)
+- `src/checks/` — accessibility checks:
+  - `skip-link.ts` — Skip-to-content validation (3 checks)
+  - `mega-menu.ts` — Navigation keyboard accessibility (10 checks)
+- `src/core/` — utilities:
+  - `crawl.ts` — Target page discovery
+  - `score.ts` — Issue prioritization
+  - `emit.ts` — Pitch pack generation
+  - `templates.ts` — Markdown/JSON templates
+  - `logger.ts` — Error handling
+  - `capture.ts` — Screenshot utility
+  - `find-navigation.ts` — Smart pattern-based navigation finder
+- `src/runner.ts` — Orchestrates crawl and checks
+- `src/cli.ts` — Entry point (Usage: `npm run audit -- "Client Name" https://domain`)
+- `utilities/` — Development tools:
+  - `test-nav-finder.ts` — Navigation finder test suite
+  - `capture-nav-html.ts` — HTML capture utility
 
 ---
 

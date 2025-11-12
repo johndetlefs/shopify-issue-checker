@@ -15,13 +15,28 @@ This repository contains a **read‑only sales/lead‑gen tool** that scans a pu
   - `score.json` — machine‑readable issue inventory
   - `issues/*` — per‑issue folder: finding, prompt, screenshot, raw data
 
-### Minimum checks
+### Implemented checks
 
-- **Axe‑core** top violations
-- **Skip to content** presence & focus behavior
-- **Mega‑menu keyboard** basics (open via Enter/Space; focus moves into items)
+1. **Skip to content** — 3 checks:
+   - Missing skip link
+   - Skip link not first focusable
+   - Broken skip link target
+2. **Smart navigation finder** — Pattern-based detection with scoring
+3. **Mega-menu keyboard** — 10 checks:
+   - Keyboard navigation (Enter/Space, Escape, focus management)
+   - ARIA attributes (aria-expanded, aria-haspopup)
+   - Focus indicators and return-to-trigger
+   - Mobile hamburger accessibility
+   - Hover timeouts and arrow key navigation
 
-Optional checks (add later): headings/landmarks, image alts, form labels, focus‑visible.
+### Planned checks
+
+- **Axe-core** automated WCAG 2.1 AA scan
+- **Navigation screen reader** support (alt text, labels, empty links, landmarks)
+- **Navigation usability** (color contrast, touch targets, CTA clarity)
+- Headings/landmarks, form labels, focus-visible
+
+See `.github/IMPLEMENTATION_PLAN.md` Step 10 for full details.
 
 ---
 

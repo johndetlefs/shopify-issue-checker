@@ -7,6 +7,7 @@
 
 import { Check, CheckContext, Issue } from "../types";
 import { logger } from "../core/logger";
+import { findMainNavigation } from "../core/find-navigation";
 
 export const megaMenuCheck: Check = {
   name: "mega-menu",
@@ -18,16 +19,18 @@ export const megaMenuCheck: Check = {
     try {
       logger.info(`Checking mega menu keyboard navigation on ${target.label}`);
 
-      // Find the main navigation
-      const nav = page
-        .locator('nav[role="navigation"], header nav, [role="menubar"]')
-        .first();
-      const navExists = (await nav.count()) > 0;
+      // Find the main navigation using smart selector
+      const nav = await findMainNavigation(page);
 
-      if (!navExists) {
+      if (!nav) {
         logger.warn("No main navigation found", { url: target.url });
         return issues;
       }
+
+      logger.info("Found main navigation", {
+        classes: await nav.getAttribute("class"),
+        ariaLabel: await nav.getAttribute("aria-label"),
+      });
 
       // Find navigation items that might have dropdowns/submenus
       const menuItems = await page
