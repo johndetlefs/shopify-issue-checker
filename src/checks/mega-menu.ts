@@ -336,49 +336,46 @@ WCAG Success Criteria: 2.1.1 Keyboard (Level A), 2.5.5 Target Size (Level AAA)`,
             await page.waitForTimeout(500);
 
             // Add visual annotation directly without focusing
-            const annotationResult = await page.evaluate(() => {
-              // Find main navigation using semantic structure (nav elements or header)
-              // Then filter to only visible top-level links (excludes hidden mega menu items)
-
-              // Try semantic navigation first
-              let navContainers = Array.from(
-                document.querySelectorAll('nav, [role="navigation"]')
+            // Use the already-found navigation element to find visible links
+            const annotationResult = await nav.evaluate((navElement) => {
+              // Get all links/buttons from the main navigation
+              const allNavElements = Array.from(
+                navElement.querySelectorAll("a, button")
               );
 
-              // Fall back to header if no semantic nav
-              if (navContainers.length === 0) {
-                const header = document.querySelector("header");
-                if (header) navContainers = [header];
-              }
-
-              if (navContainers.length === 0) {
-                return {
-                  error: "No nav or header element found",
-                  totalElements: 0,
-                  debugInfo: [],
-                };
-              }
-
-              // Get all links/buttons from navigation containers
-              const allNavElements: Element[] = [];
-              navContainers.forEach((container) => {
-                allNavElements.push(
-                  ...Array.from(container.querySelectorAll("a, button"))
-                );
-              });
-
-              // Filter to only VISIBLE elements (this excludes hidden mega menu dropdowns)
-              const visibleElements = allNavElements.filter((el) => {
+              // Helper: Check if element is truly visible (not in hidden mega menu)
+              const isTrulyVisible = (el: Element): boolean => {
                 const rect = el.getBoundingClientRect();
                 const styles = window.getComputedStyle(el);
-                return (
-                  rect.width > 0 &&
-                  rect.height > 0 &&
+
+                // Must have dimensions
+                const hasSize = rect.width > 0 && rect.height > 0;
+                
+                // Must be visible (not display:none, visibility:hidden, or opacity:0)
+                const isVisible =
                   styles.display !== "none" &&
                   styles.visibility !== "hidden" &&
-                  styles.opacity !== "0"
-                );
-              });
+                  parseFloat(styles.opacity || "1") > 0;
+
+                // Check if any parent up to navElement is hidden (mega menu dropdown check)
+                let parent = el.parentElement;
+                while (parent && parent !== navElement) {
+                  const parentStyles = window.getComputedStyle(parent);
+                  if (
+                    parentStyles.display === "none" ||
+                    parentStyles.visibility === "hidden" ||
+                    parseFloat(parentStyles.opacity || "1") === 0
+                  ) {
+                    return false;
+                  }
+                  parent = parent.parentElement;
+                }
+
+                return hasSize && isVisible;
+              };
+
+              // Filter to only VISIBLE elements (excludes hidden mega menu dropdowns)
+              const visibleElements = allNavElements.filter(isTrulyVisible);
 
               // Helper: Check if element is a utility link (not main navigation)
               const isUtilityElement = (el: Element) => {
