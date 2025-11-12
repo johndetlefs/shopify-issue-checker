@@ -1,12 +1,49 @@
-# Implementation Plan — Shopify A11y/UX “Pitch Pack” Generator (Sales Tool)
+# Implementation Plan — Shopify A11y/UX "Pitch Pack" Generator (Sales Tool)
 
 **Zero code in this file.** Follow each step in order. For every step:
 
 - Confirm the **Goal** and **Requirements**.
 - Verify the **Acceptance Criteria**.
-- Paste the **Prompt to Copilot** into a new empty file or the VS Code chat and accept Copilot’s generated changes.
+- Paste the **Prompt to Copilot** into a new empty file or the VS Code chat and accept Copilot's generated changes.
 
 > Target stack: TypeScript + Playwright. Uses the Playwright VS Code extension, and (optionally) the Playwright MCP server. WCAG 2.1 AA baseline. Shopify-aware guidance.
+
+---
+
+## Quick Status Summary
+
+### Core Infrastructure
+
+- ✅ Step 0: Environment readiness
+- ✅ Step 1: Repository bootstrap
+- ✅ Step 2: TypeScript and Playwright configuration
+- ✅ Step 2.5: Install dependencies
+- ✅ Step 3: Project scripts
+- ✅ Step 4: VS Code task for one-click use
+- ✅ Step 5: Source tree layout
+- ✅ Step 6: Shared types
+- ✅ Step 7: Crawl targets (sales-focused)
+- ✅ Step 8: Scoring logic (MVP + litigation priority)
+- ✅ Step 8.5: Error handling & logging
+- ✅ Step 9: Pitch pack emission
+- ✅ Step 11: Runner and CLI
+
+### Accessibility Checks
+
+- ✅ Step 10a: Skip-to-content check (3 issue types)
+- ✅ Step 10b: Smart navigation finder (pattern-based with scoring)
+- ✅ Step 10c: Mega-menu comprehensive check (17 issue types: keyboard, screen reader, usability)
+- ✅ Step 10d: Axe-core automated WCAG scan (10+ violations detected, litigation-focused)
+- 🔜 Step 10e: Purchase flow checks (Homepage → Search → Product → Cart → Checkout blockers)
+
+### Polish & QA
+
+- ⏳ Step 12: VS Code task verification
+- ⏳ Step 13: Copilot instructions file
+- ⏳ Step 14: First run & QA
+- ⏳ Step 15: Optional enhancements
+
+**Current Status:** All core checks complete (27+ issue types). Litigation-focused scoring operational. Axe-core detecting ARIA, form, contrast, and semantic violations. Ready for purchase flow checks and polish phase.
 
 ---
 
@@ -222,15 +259,16 @@ Next steps will add real accessibility checks (axe-core, skip-link, mega-menu) t
 
 ---
 
-## Step 10 — Comprehensive accessibility checks ✅ (Keyboard Complete, Expanding)
+## Step 10 — Comprehensive accessibility checks ✅ (17 checks implemented)
 
 **Goal:** Provide comprehensive, sales-grade checks covering keyboard, screen reader, and conversion-focused usability.
 **Requirements:**
 
 1. **Skip to content** (presence/focus) — ✅ Complete (3 checks)
 2. **Smart navigation finder** — ✅ Complete (pattern-based with scoring)
-3. **Mega menu comprehensive check** — ✅ Keyboard complete (10 checks), expanding to screen reader + usability
+3. **Mega menu comprehensive check** — ✅ Complete (17 checks: keyboard, screen reader, usability)
 4. **Axe-core (automated WCAG scan)** — ⏳ Planned
+5. **Purchase flow blockers** — 🔜 Planned (Step 10e below)
 
 **Navigation Finder Implementation (✅ Complete):**
 
@@ -305,23 +343,78 @@ The smart navigation finder uses pattern recognition and scoring to reliably ide
 17. Touch targets too small (<44×44px)
 18. Vague link text ("Click here", "Read more")
 
-### Axe-Core Automated Check (⏳ Planned)
+### Axe-Core Automated Check (✅ Complete)
 
-- Runs automated WCAG 2.1 AA scan
+**Implementation:** Runs automated WCAG 2.1 AA scans on all pages using @axe-core/playwright
+
+**Features:**
+
 - Filters for wcag2a, wcag2aa, wcag21aa tags
-- Captures top violations with node-level details
-- Includes heading hierarchy, semantic HTML, label associations
+- Captures top 10 violations per page
+- Litigation-focused impact mapping:
+  - Color contrast → litigation (#1 ADA lawsuit trigger)
+  - ARIA violations → litigation (roles, labels, structure)
+  - Form controls → litigation (select names, input labels)
+  - Links/frames → litigation (discernible text, accessible names)
+  - Semantic HTML → litigation (list structure, heading hierarchy)
+- Deduplicates site-wide issues across pages
+- Includes node-level details (HTML, CSS selectors, failure summaries)
+- Generates actionable fix prompts with axe documentation links
+
+**Sample violations detected:**
+
+- Select element must have accessible name (6 pages)
+- ARIA roles structure violations (parent/child relationships)
+- Links must have discernible text (6 pages)
+- List element containment issues (li, ul, ol)
+- Color contrast failures
+- Frames must have accessible names
+- ARIA input fields missing labels
 
 **Status:**
 
 - ✅ Skip-link check: Complete (3 issue types)
 - ✅ Smart navigation finder: Complete (pattern-based with scoring)
 - ✅ Mega-menu comprehensive: Complete (17 issue types - keyboard, screen reader, usability)
-- ⏳ Axe-core automated scan: Planned
+- ✅ Axe-core automated scan: Complete (10+ violation types, litigation-focused)
 
 ---
 
-## Step 11 — Runner and CLI
+## Step 10e — Purchase flow blocker checks 🔜
+
+**Goal:** Identify critical blockers that stop users from completing purchases.
+**Requirements:** Test common user journeys for accessibility issues that prevent purchase completion:
+
+1. **Homepage → Search** — Search functionality accessible
+2. **Search → Product Listing** — Product links navigable, images have alt text
+3. **Product → Add to Cart** — Add to cart button keyboard accessible, form controls labeled
+4. **Cart → Checkout** — Cart accessible, quantity controls work, proceed button labeled
+5. **Checkout Flow** — Payment forms accessible, error messages clear, focus management
+
+**Acceptance Criteria:**
+
+- Each flow is tested with keyboard-only navigation
+- Form controls are properly labeled
+- Error states are announced to screen readers
+- Focus management maintains logical order
+- Critical interactive elements are keyboard accessible
+
+**Priority Issues (Litigation + Revenue):**
+
+- Form inputs without labels in checkout → `litigation` impact
+- Payment/shipping form validation errors not announced → `litigation` impact
+- Add to cart button not keyboard accessible → `revenue` impact
+- Quantity controls not accessible → `revenue` impact
+- Checkout button missing or not focusable → `revenue` impact
+
+**Prompt to Copilot (Future):**
+"Create `src/checks/purchase-flow.ts` that tests critical e-commerce user journeys: Homepage → Search → Product → Add to Cart → Checkout. Focus on blockers that prevent purchase completion: inaccessible forms, unlabeled inputs, keyboard traps, missing error messages. Assign 'litigation' impact to form accessibility issues and 'revenue' impact to conversion blockers like broken add-to-cart buttons."
+
+**Status:** 🔜 Planned — Will implement after axe-core check is complete.
+
+---
+
+## Step 11 — Runner and CLI ✅
 
 **Goal:** Orchestrate crawl → checks → scoring → pitch pack; expose a CLI.
 **Requirements:** Runner accepts client name + URL, iterates pages, accumulates Issues, scores them, and emits the pack. CLI parses args and prints the output path and issue count.
