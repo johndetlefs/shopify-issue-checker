@@ -26,20 +26,58 @@ function mapAxeImpactToSeverity(axeImpact: string): Severity {
 }
 
 // Map violation types to business impact
-function mapViolationToImpact(tags: string[]): Impact {
-  // Form and input errors directly affect conversion
-  if (tags.some((t) => t.includes("forms") || t.includes("input"))) {
-    return "conversion";
+function mapViolationToImpact(tags: string[], ruleId: string): Impact {
+  // Color contrast is the #1 ADA lawsuit trigger - litigation risk
+  if (
+    ruleId.includes("color-contrast") ||
+    tags.some((t) => t.includes("color-contrast"))
+  ) {
+    return "litigation";
   }
-  // Image violations affect trust and brand perception
-  if (tags.some((t) => t.includes("image") || t.includes("alt"))) {
+
+  // ARIA violations are common in lawsuits - semantic/structural issues
+  if (
+    ruleId.includes("aria") ||
+    ruleId.includes("role") ||
+    ruleId.includes("list") ||
+    tags.some((t) => t.includes("aria"))
+  ) {
+    return "litigation";
+  }
+
+  // Form controls without labels are critical WCAG violations
+  // Widespread form issues = litigation, isolated = conversion
+  if (
+    ruleId.includes("label") ||
+    ruleId.includes("select-name") ||
+    ruleId.includes("input") ||
+    tags.some((t) => t.includes("forms") || t.includes("input"))
+  ) {
+    // If it's a critical form control issue, prioritize litigation
+    return ruleId.includes("select-name") || ruleId.includes("label")
+      ? "litigation"
+      : "conversion";
+  }
+
+  // Image violations: product images affect revenue, generic images affect trust
+  if (
+    ruleId.includes("image-alt") ||
+    tags.some((t) => t.includes("image") || t.includes("alt"))
+  ) {
+    // Default to trust; would need context to determine if product images
     return "trust";
   }
-  // Color contrast affects readability and revenue
-  if (tags.some((t) => t.includes("color-contrast"))) {
-    return "revenue";
+
+  // Link and navigation issues affect both litigation and conversion
+  if (
+    ruleId.includes("link-name") ||
+    ruleId.includes("frame-title") ||
+    tags.some((t) => t.includes("link") || t.includes("navigation"))
+  ) {
+    return "litigation";
   }
-  // ARIA and semantic issues are compliance/legal risks
+
+  // Everything else is compliance/legal risk
   return "compliance";
 }
 
@@ -103,7 +141,7 @@ export const axeCoreCheck: Check = {
       // Convert each violation to an Issue
       for (const violation of topViolations) {
         const severity = mapAxeImpactToSeverity(violation.impact || "moderate");
-        const impact = mapViolationToImpact(violation.tags);
+        const impact = mapViolationToImpact(violation.tags, violation.id);
         const effort = estimateEffort(violation.id, violation.nodes.length);
 
         // Extract WCAG criteria from tags (e.g., "wcag131" -> "1.3.1")

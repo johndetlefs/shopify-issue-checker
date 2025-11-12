@@ -11,7 +11,13 @@ import { Page } from "@playwright/test";
 export type Severity = "critical" | "serious" | "moderate" | "minor";
 
 // Business impact categories for sales prioritization
-export type Impact = "revenue" | "conversion" | "trust" | "compliance";
+// Ordered by C-suite priority: litigation risk > revenue loss > conversion > trust > compliance
+export type Impact =
+  | "litigation"
+  | "revenue"
+  | "conversion"
+  | "trust"
+  | "compliance";
 
 // Development effort estimation
 export type Effort = "low" | "medium" | "high";

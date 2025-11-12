@@ -15,10 +15,11 @@ const severityWeight: Record<string, number> = {
 };
 
 const impactWeight: Record<string, number> = {
-  revenue: 4,
-  conversion: 3,
-  trust: 2,
-  compliance: 1,
+  litigation: 5, // ADA lawsuits, legal risk - highest priority for C-suite
+  revenue: 4, // Checkout broken, payment fails, product pages unusable
+  conversion: 3, // Cart, search, critical user flows affected
+  trust: 2, // Brand perception, customer confidence
+  compliance: 1, // Nice-to-have WCAG conformance
 };
 
 const effortDivisor: Record<string, number> = {
