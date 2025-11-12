@@ -8,31 +8,199 @@
 import { Issue } from "../types";
 
 export function generateSummary(clientName: string, issues: Issue[]): string {
-  // TODO: Generate executive summary with issue count, top wins
-  // TODO: Include WCAG references where available
-  // TODO: List all issues with paths
+  const criticalCount = issues.filter((i) => i.severity === "critical").length;
+  const seriousCount = issues.filter((i) => i.severity === "serious").length;
+  const moderateCount = issues.filter((i) => i.severity === "moderate").length;
+  const minorCount = issues.filter((i) => i.severity === "minor").length;
 
-  return `# ${clientName} - Accessibility & Usability Audit Summary\n\n(Not yet implemented)`;
+  const topIssues = issues.slice(0, 5);
+
+  return `# ${clientName} — Accessibility & Usability Audit Summary
+
+**Generated:** ${new Date().toLocaleDateString()}
+
+## Executive Summary
+
+We identified **${
+    issues.length
+  } accessibility and usability issues** across your Shopify storefront that could be impacting conversions, customer trust, and WCAG 2.1 AA compliance.
+
+### Issue Breakdown
+
+- 🔴 **Critical:** ${criticalCount}
+- 🟠 **Serious:** ${seriousCount}
+- 🟡 **Moderate:** ${moderateCount}
+- 🟢 **Minor:** ${minorCount}
+
+---
+
+## Top Priority Issues
+
+${topIssues
+  .map(
+    (issue, i) => `
+### ${i + 1}. ${issue.title}
+
+- **Severity:** ${issue.severity}
+- **Impact:** ${issue.impact}
+- **Effort to Fix:** ${issue.effort}
+- **WCAG Criteria:** ${issue.wcagCriteria?.join(", ") || "N/A"}
+- **Found on:** ${issue.path}
+
+**Description:** ${issue.description}
+
+**Solution:** ${issue.solution}
+`
+  )
+  .join("\n---\n")}
+
+---
+
+## All Issues by Page
+
+${issues
+  .map(
+    (issue, i) =>
+      `${i + 1}. **${issue.title}** (${issue.severity}) — ${issue.path}`
+  )
+  .join("\n")}
+
+---
+
+## Next Steps
+
+1. Review individual issue details in the \`/issues\` folder
+2. Prioritize fixes based on business impact
+3. Use the provided Copilot prompts for AI-assisted implementation
+4. Re-audit after fixes to track progress
+
+**Need help implementing these fixes?** We specialize in Shopify accessibility improvements with quick turnaround times.
+`;
 }
 
 export function generateEmail(clientName: string, issues: Issue[]): string {
-  // TODO: Generate short, professional outreach email
-  // TODO: Highlight top 2-3 quick wins
-  // TODO: Include clear next step/CTA
+  const topWins = issues.slice(0, 3);
 
-  return `Subject: Quick Accessibility Wins for ${clientName}\n\n(Not yet implemented)`;
+  return `Subject: Quick Accessibility Wins for ${clientName}
+
+Hi [Name],
+
+I ran a quick accessibility audit on your Shopify store and found **${
+    issues.length
+  } opportunities** to improve conversions, customer trust, and compliance with web accessibility standards (WCAG 2.1 AA).
+
+Here are the top 3 quick wins:
+
+${topWins
+  .map(
+    (issue, i) => `${i + 1}. **${issue.title}**
+   Impact: ${issue.impact} | Effort: ${issue.effort}
+   ${issue.solution}
+`
+  )
+  .join("\n")}
+
+I've prepared a full report with:
+- Screenshots of each issue
+- Step-by-step fix instructions
+- AI-ready prompts for implementation
+
+Would you be interested in reviewing the findings? I can walk you through the top priorities in a quick 15-minute call.
+
+Best regards,
+[Your Name]
+
+P.S. — These accessibility improvements typically increase conversions by 5-15% and help you reach a wider customer base.
+`;
 }
 
 export function generateFinding(issue: Issue): string {
-  // TODO: Generate detailed finding.md for an issue
-  // TODO: Include severity, impact, WCAG refs, solution
+  return `# ${issue.title}
 
-  return `# ${issue.title}\n\n(Not yet implemented)`;
+**Severity:** ${issue.severity}
+**Business Impact:** ${issue.impact}
+**Effort to Fix:** ${issue.effort}
+**WCAG Criteria:** ${issue.wcagCriteria?.join(", ") || "Not applicable"}
+
+---
+
+## Description
+
+${issue.description}
+
+---
+
+## Impact
+
+This issue affects:
+- ${issue.impact === "revenue" ? "Direct revenue and sales conversions" : ""}
+- ${issue.impact === "conversion" ? "User flow and conversion rates" : ""}
+- ${issue.impact === "trust" ? "Brand perception and customer trust" : ""}
+- ${issue.impact === "compliance" ? "Legal compliance and risk mitigation" : ""}
+
+---
+
+## Recommended Solution
+
+${issue.solution}
+
+---
+
+## Technical Details
+
+**Found on:** ${issue.path}
+
+${
+  issue.rawData
+    ? "\n**Raw diagnostic data:** See `raw.json` for technical details.\n"
+    : ""
+}
+${
+  issue.screenshot
+    ? "\n**Screenshot:** See `screenshot.png` for visual reference.\n"
+    : ""
+}
+
+---
+
+## Implementation Prompt
+
+See \`prompt.md\` for AI-assisted fix instructions.
+`;
 }
 
 export function generatePrompt(issue: Issue): string {
-  // TODO: Generate actionable copilot fix prompt
-  // TODO: Include Liquid/CSS/TS snippets where relevant
+  return `# Fix Prompt: ${issue.title}
 
-  return issue.copilotPrompt || "(Not yet implemented)";
+## Context
+
+You are fixing an accessibility/usability issue on a Shopify storefront.
+
+**Issue:** ${issue.title}
+**WCAG Criteria:** ${issue.wcagCriteria?.join(", ") || "Not applicable"}
+**Found on:** ${issue.path}
+
+## Requirements
+
+${issue.copilotPrompt}
+
+## Solution Approach
+
+${issue.solution}
+
+## Technical Constraints
+
+- This is a Shopify theme (Liquid templates)
+- Maintain existing functionality
+- Ensure keyboard accessibility
+- Preserve focus visibility with \`:focus-visible\` (don't remove outlines)
+- Test with screen readers if applicable
+
+## Acceptance Criteria
+
+- Issue is resolved and verified on the affected page
+- No regressions in existing functionality
+- Solution follows Shopify best practices
+- WCAG 2.1 AA compliance achieved
+`;
 }

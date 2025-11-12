@@ -1,36 +1,110 @@
 /**
- * Pitch pack emitter
+ * Pitch pack emission
  *
- * Writes the complete pitch pack to disk:
- * summary, email, score.json, and per-issue folders with assets.
+ * Writes the pitch pack files to disk with all audit findings and recommendations.
  */
 
+import { writeFileSync, mkdirSync } from "fs";
+import { join } from "path";
 import { Issue } from "../types";
-import * as fs from "fs/promises";
-import * as path from "path";
+import { logger } from "./logger";
+import {
+  generateSummary,
+  generateEmail,
+  generateFinding,
+  generatePrompt,
+} from "./templates";
 
-export async function emitPitchPack(
+function kebabCase(str: string): string {
+  return str
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+export function emitPitchPack(
   clientName: string,
-  issues: Issue[],
-  outputDir: string
-): Promise<string> {
-  // TODO: Create /clients/{client-kebab}/pitch-pack/ directory
-  // TODO: Write summary.md using templates
-  // TODO: Write email.md using templates
-  // TODO: Write score.json with machine-readable issue list
-  // TODO: For each issue, create /issues/{NN}-{issue-slug}/ folder
-  // TODO: Write finding.md, prompt.md, screenshot.png (if exists), raw.json
-  // TODO: Return the pitch pack path
+  baseUrl: string,
+  issues: Issue[]
+): string {
+  const clientSlug = kebabCase(clientName);
+  const packPath = join(process.cwd(), "clients", clientSlug, "pitch-pack");
 
-  const kebabName = clientName.toLowerCase().replace(/\s+/g, "-");
-  const pitchPackPath = path.join(
-    outputDir,
-    "clients",
-    kebabName,
-    "pitch-pack"
-  );
+  try {
+    // Create directory structure
+    mkdirSync(packPath, { recursive: true });
+    logger.info("Created pitch pack directory", { packPath });
 
-  console.log(`Would create pitch pack at: ${pitchPackPath}`);
+    // Write summary.md
+    const summaryPath = join(packPath, "summary.md");
+    writeFileSync(summaryPath, generateSummary(clientName, issues), "utf-8");
+    logger.info("Wrote summary.md");
 
-  return pitchPackPath;
+    // Write email.md
+    const emailPath = join(packPath, "email.md");
+    writeFileSync(emailPath, generateEmail(clientName, issues), "utf-8");
+    logger.info("Wrote email.md");
+
+    // Write score.json
+    const scorePath = join(packPath, "score.json");
+    writeFileSync(
+      scorePath,
+      JSON.stringify(
+        { clientName, baseUrl, issues, timestamp: new Date() },
+        null,
+        2
+      ),
+      "utf-8"
+    );
+    logger.info("Wrote score.json");
+
+    // Write individual issue folders
+    const issuesDir = join(packPath, "issues");
+    mkdirSync(issuesDir, { recursive: true });
+
+    issues.forEach((issue, index) => {
+      const issueSlug = `${String(index + 1).padStart(2, "0")}-${kebabCase(
+        issue.title
+      )}`;
+      const issueDir = join(issuesDir, issueSlug);
+      mkdirSync(issueDir, { recursive: true });
+
+      // Write finding.md
+      writeFileSync(
+        join(issueDir, "finding.md"),
+        generateFinding(issue),
+        "utf-8"
+      );
+
+      // Write prompt.md
+      writeFileSync(
+        join(issueDir, "prompt.md"),
+        generatePrompt(issue),
+        "utf-8"
+      );
+
+      // Write raw.json
+      if (issue.rawData) {
+        writeFileSync(
+          join(issueDir, "raw.json"),
+          JSON.stringify(issue.rawData, null, 2),
+          "utf-8"
+        );
+      }
+
+      // Copy screenshot if present
+      if (issue.screenshot) {
+        // Screenshot path is already written by the check, just log it
+        logger.info(`Screenshot available: ${issue.screenshot}`);
+      }
+    });
+
+    logger.info(`Pitch pack emitted successfully for ${clientName}`, {
+      issueCount: issues.length,
+    });
+    return packPath;
+  } catch (error) {
+    logger.error("Failed to emit pitch pack", error);
+    throw error;
+  }
 }

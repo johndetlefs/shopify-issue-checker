@@ -28,15 +28,19 @@ const effortDivisor: Record<string, number> = {
 };
 
 export function scoreIssues(issues: Issue[]): Issue[] {
-  // TODO: Compute priority = (severity × impact) / effort
-  // TODO: Attach priority to each issue
-  // TODO: Sort descending by priority
-  // TODO: Return sorted issues
-
   return issues
-    .map((issue) => ({
-      ...issue,
-      priority: 0,
-    }))
+    .map((issue) => {
+      const severity = severityWeight[issue.severity] || 1;
+      const impact = impactWeight[issue.impact] || 1;
+      const effort = effortDivisor[issue.effort] || 1;
+
+      // Priority formula: (severity × impact) / effort
+      const priority = (severity * impact) / effort;
+
+      return {
+        ...issue,
+        priority: Math.round(priority * 100) / 100, // Round to 2 decimal places
+      };
+    })
     .sort((a, b) => (b.priority || 0) - (a.priority || 0));
 }

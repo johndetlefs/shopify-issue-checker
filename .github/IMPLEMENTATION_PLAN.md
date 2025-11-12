@@ -152,7 +152,7 @@ Each file should have a comment describing its responsibility."
 
 ---
 
-## Step 7 — Crawl targets (sales-focused)
+## Step 7 — Crawl targets (sales-focused) ✅
 
 **Goal:** Generate a short list of high-signal URLs to scan.
 **Requirements:** A function that returns ~5–6 pages (home, collections, product if found, cart, search, policy). The function should accept a Playwright `Page` instance and the base URL, return `Promise<PageTarget[]>` where `PageTarget` includes `url` and `label` (e.g., 'Homepage', 'Product: Widget Name').
@@ -165,9 +165,20 @@ Each file should have a comment describing its responsibility."
 **Prompt to Copilot:**
 "Implement `src/core/crawl` to return a small, deduped set of scan targets for a Shopify store (home, collections, cart, search, shipping policy, plus one or two product/collection URLs discovered from the homepage). The function should accept a Playwright `Page` instance and the base URL, return `Promise<PageTarget[]>` where `PageTarget` includes `url` and `label`. Handle navigation failures gracefully. Keep it robust and fast."
 
+**Status:** ✅ Complete — Full crawl implementation with graceful error handling, deduplication, and logging. Also completed Steps 8-11 as MVP scaffolding to enable end-to-end testing. Successfully tested with https://universalstore.com and generated complete pitch pack.
+
+**MVP Note:** Steps 8, 9, 10, and 11 have been implemented with basic functionality to create a working MVP. The tool can now:
+
+- Crawl Shopify stores
+- Generate pitch pack structure (summary.md, email.md, score.json, issue folders)
+- Run via CLI with arguments or interactive prompts
+- Handle errors gracefully
+
+Next steps will add real accessibility checks (axe-core, skip-link, mega-menu) to replace the sample issue.
+
 ---
 
-## Step 8 — Scoring logic
+## Step 8 — Scoring logic ✅ (MVP)
 
 **Goal:** Prioritize issues by severity × impact ÷ effort.
 **Requirements:** A pure function that sorts findings into a sensible order for sales conversations.
