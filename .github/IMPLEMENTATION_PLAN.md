@@ -276,9 +276,9 @@ The smart navigation finder uses pattern recognition and scoring to reliably ide
 - Visibility-aware link counting
 - Documented in `docs/NAV-PATTERNS.md` and `docs/NAV-FINDER-SUMMARY.md`
 
-### Mega-Menu Navigation (✅ Keyboard Complete — 10 checks)
+### Mega-Menu Navigation (✅ Complete — 17 checks)
 
-**Keyboard Accessibility (✅ Complete):**
+**Keyboard Accessibility (✅ Complete — 10 checks):**
 
 1. Can't open with keyboard (Enter/Space)
 2. Can't close with Escape
@@ -291,18 +291,19 @@ The smart navigation finder uses pattern recognition and scoring to reliably ide
 9. Hover timeout too short
 10. Arrow key navigation missing
 
-**Screen Reader Support (⏳ Planned):**
+**Semantic/Screen Reader Support (✅ Complete — 4 checks):**
 
-11. Image alt text missing/poor (logos, category images in nav)
-12. Form labels missing (search inputs in nav)
-13. Empty links/buttons (icon-only without text)
-14. Landmark roles missing (nav, main, complementary)
+11. Links as buttons (href="#" for dropdown triggers instead of <button>)
+12. Image alt text missing/poor (logos, category images in nav)
+13. Form labels missing (search inputs in nav)
+14. Empty links/buttons (icon-only without text)
+15. Landmark roles missing (nav, main, complementary)
 
-**Conversion/Usability (⏳ Planned):**
+**Conversion/Usability (✅ Complete — 3 checks):**
 
-15. Color contrast failures (text hard to read)
-16. Touch targets too small (<44×44px)
-17. CTA buttons not descriptive ("Click here" vs "Shop Now")
+16. Color contrast failures (text hard to read)
+17. Touch targets too small (<44×44px)
+18. Vague link text ("Click here", "Read more")
 
 ### Axe-Core Automated Check (⏳ Planned)
 
@@ -315,8 +316,7 @@ The smart navigation finder uses pattern recognition and scoring to reliably ide
 
 - ✅ Skip-link check: Complete (3 issue types)
 - ✅ Smart navigation finder: Complete (pattern-based with scoring)
-- ✅ Mega-menu keyboard: Complete (10 issue types)
-- ⏳ Mega-menu screen reader/usability: Planned (7 additional checks)
+- ✅ Mega-menu comprehensive: Complete (17 issue types - keyboard, screen reader, usability)
 - ⏳ Axe-core automated scan: Planned
 
 ---

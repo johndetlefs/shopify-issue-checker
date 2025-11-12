@@ -2059,6 +2059,259 @@ Also improves: Mobile conversion rates, user satisfaction, reduced mis-taps`,
         });
       }
 
+      // Check 14: Landmark roles missing
+      const landmarkIssues = await page.evaluate(() => {
+        // Check for semantic landmarks
+        const hasNav =
+          document.querySelector('nav, [role="navigation"]') !== null;
+        const hasMain = document.querySelector('main, [role="main"]') !== null;
+        const navElement = document.querySelector(
+          'header nav, header [role="navigation"], [class*="header"] nav, [class*="header"] [role="navigation"]'
+        );
+
+        const issues = [];
+
+        // Check if navigation exists but lacks semantic role
+        if (navElement) {
+          const isNav = navElement.tagName.toLowerCase() === "nav";
+          const hasRole = navElement.hasAttribute("role");
+
+          if (
+            !isNav &&
+            (!hasRole || navElement.getAttribute("role") !== "navigation")
+          ) {
+            issues.push({
+              type: "nav-missing-role",
+              element: navElement.tagName.toLowerCase(),
+              classes: navElement.className,
+            });
+          }
+        }
+
+        return {
+          hasNavLandmark: hasNav,
+          hasMainLandmark: hasMain,
+          issues: issues,
+          navElement: navElement
+            ? {
+                tag: navElement.tagName.toLowerCase(),
+                role: navElement.getAttribute("role"),
+                hasAriaLabel: navElement.hasAttribute("aria-label"),
+              }
+            : null,
+        };
+      });
+
+      if (!landmarkIssues.hasNavLandmark || landmarkIssues.issues.length > 0) {
+        issues.push({
+          id: `mega-menu-missing-landmarks-${Date.now()}`,
+          title: "Navigation Missing Semantic Landmark Roles",
+          description: `Navigation lacks proper semantic HTML landmarks. Screen reader users rely on landmarks (<nav>, <main>, role="navigation") to quickly navigate page sections. ${
+            !landmarkIssues.hasNavLandmark ? "No <nav> element found." : ""
+          } ${
+            landmarkIssues.issues.length > 0
+              ? `${landmarkIssues.issues.length} navigation elements lack proper roles.`
+              : ""
+          }`,
+          severity: "serious",
+          impact: "trust",
+          effort: "low",
+          wcagCriteria: ["1.3.1", "2.4.1"],
+          path: target.url,
+          solution:
+            "Use semantic <nav> element for navigation, <main> for main content, or add role='navigation' to existing elements. Add aria-label to distinguish multiple navigation landmarks.",
+          copilotPrompt: `You are fixing: Missing semantic landmark roles (WCAG 1.3.1, 2.4.1)
+Target page: ${target.url}
+
+Navigation lacks semantic landmarks for screen reader navigation.
+
+Requirements:
+1. Use <nav> element for main navigation
+2. Add role="navigation" if can't change HTML element
+3. Use aria-label to distinguish multiple nav landmarks
+4. Ensure <main> landmark exists for main content
+
+Example fixes:
+
+<!-- Best: Semantic HTML -->
+<nav aria-label="Main navigation">
+  <ul>
+    <li><a href="/">Home</a></li>
+    <li><a href="/products">Products</a></li>
+  </ul>
+</nav>
+
+<main>
+  <!-- Page content -->
+</main>
+
+<!-- If can't change element: Add role -->
+<div role="navigation" aria-label="Main navigation">
+  <ul>...</ul>
+</div>
+
+<!-- Multiple navigation landmarks -->
+<nav aria-label="Main navigation">...</nav>
+<nav aria-label="Footer navigation">...</nav>
+<nav aria-label="Account menu">...</nav>
+
+<!-- Common landmark structure -->
+<header>
+  <nav aria-label="Main navigation">...</nav>
+</header>
+
+<main>
+  <nav aria-label="Breadcrumb">...</nav>
+  <!-- Main content -->
+</main>
+
+<footer>
+  <nav aria-label="Footer navigation">...</nav>
+</footer>
+
+Why landmarks matter:
+- Screen reader shortcuts (R for regions, N for next navigation)
+- Users can skip directly to main content
+- Improves navigation efficiency
+- Required for accessibility compliance
+
+Test:
+1. Install screen reader (NVDA, JAWS, VoiceOver)
+2. Press R or navigate by landmarks
+3. Verify all major sections have proper roles
+4. Ensure aria-labels distinguish multiple navs
+
+Current state: ${JSON.stringify(landmarkIssues, null, 2)}
+
+WCAG Success Criteria:
+- 1.3.1 Info and Relationships (Level A) - Semantic structure
+- 2.4.1 Bypass Blocks (Level A) - Skip navigation mechanisms`,
+          rawData: landmarkIssues,
+        });
+      }
+
+      // Check 17: Non-descriptive link text
+      const nonDescriptiveLinks = await page.evaluate(() => {
+        const links = Array.from(document.querySelectorAll("nav a, header a"));
+        const vague = [
+          "click here",
+          "read more",
+          "learn more",
+          "here",
+          "more",
+          "link",
+          "click",
+        ];
+
+        const problematic = links.filter((link) => {
+          const text = (link.textContent || "").trim().toLowerCase();
+          const ariaLabel = (
+            link.getAttribute("aria-label") || ""
+          ).toLowerCase();
+          const effectiveText = ariaLabel || text;
+
+          // Check if text is vague
+          return vague.some((phrase) => {
+            // Exact match or very close (just "click here" or "read more info")
+            return (
+              effectiveText === phrase ||
+              effectiveText === `${phrase} info` ||
+              effectiveText.startsWith(`${phrase} -`) ||
+              (effectiveText.length < 15 && effectiveText.includes(phrase))
+            );
+          });
+        });
+
+        return {
+          count: problematic.length,
+          examples: problematic.slice(0, 5).map((link) => ({
+            text: link.textContent?.trim() || "",
+            ariaLabel: link.getAttribute("aria-label"),
+            href: link.getAttribute("href"),
+          })),
+        };
+      });
+
+      if (nonDescriptiveLinks.count > 0) {
+        issues.push({
+          id: `mega-menu-vague-link-text-${Date.now()}`,
+          title: "Navigation Links Have Vague Text",
+          description: `${nonDescriptiveLinks.count} navigation links use vague text like "Click here", "Read more", or "Learn more". Screen reader users navigating by links cannot understand the destination or purpose without context.`,
+          severity: "moderate",
+          impact: "conversion",
+          effort: "low",
+          wcagCriteria: ["2.4.4"],
+          path: target.url,
+          solution:
+            "Replace vague link text with descriptive phrases that make sense out of context. The link text alone should convey the destination or action.",
+          copilotPrompt: `You are fixing: Vague link text in navigation (WCAG 2.4.4)
+Target page: ${target.url}
+
+${
+  nonDescriptiveLinks.count
+} links use generic text that doesn't describe the destination.
+
+Requirements:
+1. Make link text descriptive and self-explanatory
+2. Link purpose should be clear from text alone
+3. Avoid "Click here", "Read more", "Learn more"
+4. Include destination or action in link text
+
+❌ BEFORE (vague):
+<a href="/products">Click here</a> to see our products
+<a href="/blog/article">Read more</a>
+<a href="/about">Learn more</a>
+
+✅ AFTER (descriptive):
+<a href="/products">Shop all products</a>
+<a href="/blog/article">Read: 5 Tips for Better Sleep</a>
+<a href="/about">About our company</a>
+
+Pattern examples:
+
+<!-- Product categories -->
+❌ <a href="/mens">Click here</a>
+✅ <a href="/mens">Shop Men's Collection</a>
+
+<!-- Call to action -->
+❌ <a href="/sale">Learn more</a>
+✅ <a href="/sale">View sale items</a>
+
+<!-- Blog/article links -->
+❌ <a href="/blog/post">Read more</a>
+✅ <a href="/blog/post">Read: [Article Title]</a>
+
+<!-- If design requires "more" button -->
+<h3>Summer Collection</h3>
+<p>New arrivals for warm weather...</p>
+✅ <a href="/summer">Shop summer collection</a>
+<!-- OR use aria-label -->
+✅ <a href="/summer" aria-label="Shop summer collection">Learn more</a>
+
+Why this matters:
+- Screen reader users navigate by links list
+- Link text out of context must make sense
+- Improves SEO (descriptive anchor text)
+- Better UX for everyone
+
+Screen reader link list example:
+Instead of hearing:
+  "Click here, link"
+  "Read more, link"  
+  "Learn more, link"
+
+User hears:
+  "Shop Men's Collection, link"
+  "View Sale Items, link"
+  "About Our Company, link"
+
+Examples found: ${JSON.stringify(nonDescriptiveLinks.examples, null, 2)}
+
+WCAG Success Criterion: 2.4.4 Link Purpose (In Context) - Level A`,
+          rawData: nonDescriptiveLinks,
+        });
+      }
+
       if (issues.length === 0) {
         logger.info("Navigation keyboard accessibility looks good", {
           url: target.url,

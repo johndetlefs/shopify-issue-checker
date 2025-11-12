@@ -50,18 +50,14 @@ Aim for **provable gaps + screenshots** over exhaustive auditing.
 
 1. **Skip to content** (presence, position, functionality) — 3 issue types
 2. **Main navigation detection** (smart pattern-based finder with scoring)
-3. **Mega menu keyboard accessibility** — 10 issue types covering:
-   - Keyboard navigation (Enter/Space, Escape, focus management)
-   - ARIA attributes (aria-expanded, aria-haspopup)
-   - Focus indicators and return-to-trigger
-   - Mobile hamburger accessibility
-   - Hover timeouts and arrow key navigation
+3. **Mega menu comprehensive accessibility** — 17 issue types covering:
+   - **Keyboard** (10): Enter/Space, Escape, focus management, ARIA, mobile, hover timeouts, arrow keys
+   - **Screen reader** (4): Links as buttons, alt text, form labels, empty links, landmarks
+   - **Usability** (3): Color contrast, touch targets, vague link text
 
 **Planned checks:**
 
 - **Axe-core automated scan** (wcag2a/aa/21aa tags)
-- **Navigation screen reader support** (alt text, labels, empty links, landmarks)
-- **Navigation usability** (color contrast, touch targets, CTA clarity)
 - Headings & landmarks sanity
 - Form labels/inputs association
 

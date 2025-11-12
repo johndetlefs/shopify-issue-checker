@@ -22,19 +22,15 @@ This repository contains a **read‑only sales/lead‑gen tool** that scans a pu
    - Skip link not first focusable
    - Broken skip link target
 2. **Smart navigation finder** — Pattern-based detection with scoring
-3. **Mega-menu keyboard** — 10 checks:
-   - Keyboard navigation (Enter/Space, Escape, focus management)
-   - ARIA attributes (aria-expanded, aria-haspopup)
-   - Focus indicators and return-to-trigger
-   - Mobile hamburger accessibility
-   - Hover timeouts and arrow key navigation
+3. **Mega-menu comprehensive** — 17 checks covering:
+   - **Keyboard accessibility** (10): Navigation, focus, ARIA, mobile hamburger
+   - **Screen reader support** (4): Links as buttons, alt text, form labels, empty links, landmarks
+   - **Usability** (3): Color contrast, touch targets, vague link text
 
 ### Planned checks
 
 - **Axe-core** automated WCAG 2.1 AA scan
-- **Navigation screen reader** support (alt text, labels, empty links, landmarks)
-- **Navigation usability** (color contrast, touch targets, CTA clarity)
-- Headings/landmarks, form labels, focus-visible
+- Headings/landmarks, focus-visible
 
 See `.github/IMPLEMENTATION_PLAN.md` Step 10 for full details.
 
