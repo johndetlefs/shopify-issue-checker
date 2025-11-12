@@ -350,7 +350,7 @@ WCAG Success Criteria: 2.1.1 Keyboard (Level A), 2.5.5 Target Size (Level AAA)`,
 
                 // Must have dimensions
                 const hasSize = rect.width > 0 && rect.height > 0;
-                
+
                 // Must be visible (not display:none, visibility:hidden, or opacity:0)
                 const isVisible =
                   styles.display !== "none" &&
