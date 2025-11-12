@@ -27,12 +27,16 @@ export interface Issue {
   impact: Impact;
   effort: Effort;
   wcagCriteria?: string[]; // e.g., ["1.3.1", "4.1.2"]
+  wcagLevel?: "2.0" | "2.1"; // WCAG version level
   path: string | string[]; // URL path(s) where issue was found - array for site-wide issues
+  pageLabel?: string; // Human-readable page label for single-page issues
+  category?: string; // Issue category (e.g., "automated", "keyboard", "screen-reader")
   screenshot?: string; // Path to screenshot file (relative to issue folder)
   video?: string; // Path to video file (relative to issue folder)
   codeSnippet?: string; // HTML/CSS code snippet showing the problem
-  solution: string; // Human-readable fix description
-  copilotPrompt: string; // Actionable prompt for AI-assisted fixes
+  solution?: string; // Human-readable fix description
+  copilotPrompt?: string; // Actionable prompt for AI-assisted fixes
+  fixPrompt?: string; // Alternative name for copilotPrompt
   rawData?: any; // Original data from check (axe nodes, etc.)
   priority?: number; // Computed priority score
 }

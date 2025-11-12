@@ -14,6 +14,7 @@ import { emitPitchPack } from "./core/emit";
 import { deduplicateIssues } from "./core/deduplicate";
 import { skipLinkCheck } from "./checks/skip-link";
 import { megaMenuCheck } from "./checks/mega-menu";
+import { axeCoreCheck } from "./checks/axe-core";
 
 export async function runAudit(
   clientName: string,
@@ -70,7 +71,14 @@ export async function runAudit(
           allIssues.push(...megaMenuIssues);
         }
 
-        // TODO: Add axe-core check
+        // Run axe-core automated scan on all pages
+        const axeIssues = await axeCoreCheck.run({
+          page,
+          baseUrl,
+          target,
+        });
+
+        allIssues.push(...axeIssues);
       } catch (error) {
         logger.warn(`Failed to check ${target.label}`, error);
         // Continue with other targets
