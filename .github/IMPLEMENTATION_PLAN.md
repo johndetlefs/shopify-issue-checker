@@ -10,7 +10,7 @@
 
 ---
 
-## Step 0 — Environment readiness
+## Step 0 — Environment readiness ✅
 
 **Goal:** Confirm local tooling is ready.
 **Requirements:** Node.js LTS, VS Code, Playwright extension installed, optional Playwright MCP server installed.
@@ -21,11 +21,13 @@
 - (Optional) Playwright MCP is installed or planned.
 
 **Prompt to Copilot:**
-“Create a short checklist file named `docs/ENV_CHECKLIST.md` that lists the prerequisites for this project (Node.js LTS, VS Code, Playwright extension, optional Playwright MCP server) and includes quick verification steps.”
+"Create a short checklist file named `docs/ENV_CHECKLIST.md` that lists the prerequisites for this project (Node.js LTS, VS Code, Playwright extension, optional Playwright MCP server) and includes quick verification steps."
+
+**Status:** ✅ Complete — `docs/ENV_CHECKLIST.md` created with prerequisites and verification commands.
 
 ---
 
-## Step 1 — Repository bootstrap
+## Step 1 — Repository bootstrap ✅
 
 **Goal:** Create a new project folder and initialize a Node/TS project.
 **Requirements:** New repo root directory with a basic package manifest.
@@ -35,11 +37,13 @@
 - `package.json` created with a project name and private flag.
 
 **Prompt to Copilot:**
-“In the current folder, initialize a new Node project for a TypeScript+Playwright CLI tool named ‘shopify-a11y-sales’. Add standard metadata and mark the package as private.”
+"In the current folder, initialize a new Node project for a TypeScript+Playwright CLI tool named 'shopify-a11y-sales'. Add standard metadata and mark the package as private."
+
+**Status:** ✅ Complete — `package.json` created with project metadata.
 
 ---
 
-## Step 2 — TypeScript and Playwright configuration
+## Step 2 — TypeScript and Playwright configuration ✅
 
 **Goal:** Establish TypeScript config and base Playwright setup.
 **Requirements:** TypeScript compiler config aligned to modern Node; Playwright ready to run headless.
@@ -51,9 +55,11 @@
 **Prompt to Copilot:**
 "Generate a `tsconfig` suitable for a Node TypeScript project and add a minimal Playwright configuration for a headless Chromium run. Keep settings concise and modern."
 
+**Status:** ✅ Complete — `tsconfig.json` and `playwright.config.ts` created with headless Chromium (1280×720 viewport).
+
 ---
 
-## Step 2.5 — Install dependencies
+## Step 2.5 — Install dependencies ✅
 
 **Goal:** Install required packages for TypeScript, Playwright, and accessibility testing.
 **Requirements:** All necessary dependencies installed and listed in `package.json`.
@@ -65,9 +71,11 @@
 **Prompt to Copilot:**
 "Add and install dependencies: `@playwright/test`, `@axe-core/playwright`, `typescript`, `@types/node`, and `ts-node`. Update `package.json` with these as dependencies or devDependencies as appropriate."
 
+**Status:** ✅ Complete — All dependencies installed and Chromium browser downloaded.
+
 ---
 
-## Step 3 — Project scripts
+## Step 3 — Project scripts ✅
 
 **Goal:** Provide easy commands to run the audit and (optionally) the MCP server.
 **Requirements:** NPM scripts for `audit` and `mcp`.
@@ -77,25 +85,29 @@
 - `npm run mcp` (optional) starts a Playwright MCP server using a local config.
 
 **Prompt to Copilot:**
-“Add NPM scripts so `npm run audit` executes the CLI entrypoint, and `npm run mcp` starts the Playwright MCP server using a `.mcp/playwright.json` file. Create the MCP config with sensible defaults.”
+"Add NPM scripts so `npm run audit` executes the CLI entrypoint, and `npm run mcp` starts the Playwright MCP server using a `.mcp/playwright.json` file. Create the MCP config with sensible defaults."
+
+**Status:** ✅ Complete — NPM scripts added and `.mcp/playwright.json` created.
 
 ---
 
-## Step 4 — VS Code task for one-click use
+## Step 4 — VS Code task for one-click use ✅
 
 **Goal:** Enable non-technical execution via VS Code Task.
 **Requirements:** A VS Code task that prompts for client name and URL.
 **Acceptance Criteria:**
 
-- VS Code shows a task ‘Sales Audit: generate pitch pack’.
+- VS Code shows a task 'Sales Audit: generate pitch pack'.
 - Running it prompts for a name and URL.
 
 **Prompt to Copilot:**
-“Create `.vscode/tasks.json` with a task called ‘Sales Audit: generate pitch pack’. It should prompt for `clientName` and `url` and then run the audit command with those arguments.”
+"Create `.vscode/tasks.json` with a task called 'Sales Audit: generate pitch pack'. It should prompt for `clientName` and `url` and then run the audit command with those arguments."
+
+**Status:** ✅ Complete — `.vscode/tasks.json` created with input prompts for client name and URL.
 
 ---
 
-## Step 5 — Source tree layout
+## Step 5 — Source tree layout ✅
 
 **Goal:** Create folders and placeholder files for types, checks, core utilities, runner, CLI.
 **Requirements:** `src/` structure with empty but well-named files.
@@ -120,9 +132,11 @@
 
 Each file should have a comment describing its responsibility."
 
+**Status:** ✅ Complete — All source files created with descriptive headers. Also created `src/core/logger.ts` for error handling (Step 8.5).
+
 ---
 
-## Step 6 — Shared types
+## Step 6 — Shared types ✅
 
 **Goal:** Define core types that all modules will use.
 **Requirements:** Types for Issue, Check, CheckContext, PageTarget, and enums for severity/impact/effort.
@@ -132,7 +146,9 @@ Each file should have a comment describing its responsibility."
 - Types reflect WCAG-centric metadata and include a path reference per finding.
 
 **Prompt to Copilot:**
-“Populate `src/types.ts` with TypeScript types for an accessibility sales audit: Issue, Check, CheckContext, and PageTarget, including severity (critical/serious/moderate/minor), impact (revenue/conversion/trust/compliance), and effort (low/medium/high).”
+"Populate `src/types.ts` with TypeScript types for an accessibility sales audit: Issue, Check, CheckContext, and PageTarget, including severity (critical/serious/moderate/minor), impact (revenue/conversion/trust/compliance), and effort (low/medium/high)."
+
+**Status:** ✅ Complete — Full type definitions created with proper Playwright types and documentation comments. Added `AuditResult` interface for summary data.
 
 ---
 

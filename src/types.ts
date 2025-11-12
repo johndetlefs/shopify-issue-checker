@@ -5,10 +5,20 @@
  * and page targets used throughout the audit process.
  */
 
+import { Page } from "@playwright/test";
+
+// Severity levels aligned with axe-core and WCAG impact
 export type Severity = "critical" | "serious" | "moderate" | "minor";
+
+// Business impact categories for sales prioritization
 export type Impact = "revenue" | "conversion" | "trust" | "compliance";
+
+// Development effort estimation
 export type Effort = "low" | "medium" | "high";
 
+/**
+ * Represents a single accessibility or usability issue found during audit
+ */
 export interface Issue {
   id: string;
   title: string;
@@ -16,27 +26,48 @@ export interface Issue {
   severity: Severity;
   impact: Impact;
   effort: Effort;
-  wcagCriteria?: string[];
-  path: string;
-  screenshot?: string;
-  solution: string;
-  copilotPrompt: string;
-  rawData?: any;
-  priority?: number;
+  wcagCriteria?: string[]; // e.g., ["1.3.1", "4.1.2"]
+  path: string; // URL path where issue was found
+  screenshot?: string; // Path to screenshot file
+  solution: string; // Human-readable fix description
+  copilotPrompt: string; // Actionable prompt for AI-assisted fixes
+  rawData?: any; // Original data from check (axe nodes, etc.)
+  priority?: number; // Computed priority score
 }
 
+/**
+ * Represents a page to be audited
+ */
 export interface PageTarget {
   url: string;
-  label: string;
+  label: string; // Human-readable label (e.g., "Homepage", "Product: Widget")
 }
 
+/**
+ * Context provided to each check when running
+ */
 export interface CheckContext {
-  page: any; // Playwright Page
+  page: Page;
   baseUrl: string;
   target: PageTarget;
 }
 
+/**
+ * Interface for accessibility/usability checks
+ */
 export interface Check {
   name: string;
   run: (context: CheckContext) => Promise<Issue[]>;
+}
+
+/**
+ * Audit result summary
+ */
+export interface AuditResult {
+  clientName: string;
+  baseUrl: string;
+  timestamp: Date;
+  targets: PageTarget[];
+  issues: Issue[];
+  pitchPackPath: string;
 }
