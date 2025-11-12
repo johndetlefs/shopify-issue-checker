@@ -7,6 +7,14 @@
 
 import { Issue } from "../types";
 
+/**
+ * Escape HTML characters in markdown titles to prevent rendering issues
+ */
+function escapeMarkdownTitle(title: string): string {
+  // Wrap HTML tags in backticks to prevent them from being interpreted as HTML
+  return title.replace(/<([^>]+)>/g, "`<$1>`");
+}
+
 export function generateSummary(clientName: string, issues: Issue[]): string {
   const criticalCount = issues.filter((i) => i.severity === "critical").length;
   const seriousCount = issues.filter((i) => i.severity === "serious").length;
@@ -49,9 +57,17 @@ We identified **${
 ## Top Priority Issues
 
 ${topIssues
-  .map(
-    (issue, i) => `
-### ${i + 1}. ${issue.title}
+  .map((issue, i) => {
+    const issueSlug = `${String(i + 1).padStart(2, "0")}-${issue.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")}`;
+    const screenshotPath = issue.screenshot
+      ? `issues/${issueSlug}/${issue.screenshot}`
+      : null;
+
+    return `
+### ${i + 1}. ${escapeMarkdownTitle(issue.title)}
 
 - **Severity:** ${issue.severity}
 - **Impact:** ${issue.impact}
@@ -61,10 +77,14 @@ ${topIssues
 
 **Description:** ${issue.description}
 
-**Solution:** ${issue.solution}
-`
-  )
-  .join("\n---\n")}
+${
+  screenshotPath
+    ? `**Screenshot:**\n\n![${issue.title}](${screenshotPath})\n\n*Annotations added to highlight the issue*\n`
+    : ""
+}**Solution:** ${issue.solution}
+`;
+  })
+  .join("\n---\n")}}
 
 ---
 
@@ -73,9 +93,9 @@ ${topIssues
 ${issues
   .map(
     (issue, i) =>
-      `${i + 1}. **${issue.title}** (${issue.severity}) — ${formatPaths(
-        issue.path
-      )}`
+      `${i + 1}. **${escapeMarkdownTitle(issue.title)}** (${
+        issue.severity
+      }) — ${formatPaths(issue.path)}`
   )
   .join("\n")}
 
@@ -107,7 +127,7 @@ Here are the top 3 quick wins:
 
 ${topWins
   .map(
-    (issue, i) => `${i + 1}. **${issue.title}**
+    (issue, i) => `${i + 1}. **${escapeMarkdownTitle(issue.title)}**
    Impact: ${issue.impact} | Effort: ${issue.effort}
    ${issue.solution}
 `
@@ -143,7 +163,7 @@ export function generateFinding(issue: Issue): string {
       ? "Found on (multiple pages)"
       : "Found on";
 
-  return `# ${issue.title}
+  return `# ${escapeMarkdownTitle(issue.title)}
 
 **Severity:** ${issue.severity}
 **Business Impact:** ${issue.impact}
@@ -225,13 +245,13 @@ export function generatePrompt(issue: Issue): string {
       ? "Found on (multiple pages)"
       : "Found on";
 
-  return `# Fix Prompt: ${issue.title}
+  return `# Fix Prompt: ${escapeMarkdownTitle(issue.title)}
 
 ## Context
 
 You are fixing an accessibility/usability issue on a Shopify storefront.
 
-**Issue:** ${issue.title}
+**Issue:** ${escapeMarkdownTitle(issue.title)}
 **WCAG Criteria:** ${issue.wcagCriteria?.join(", ") || "Not applicable"}
 **${pathLabel}:** ${formatPaths(issue.path)}
 

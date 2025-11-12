@@ -35,30 +35,7 @@ export function emitPitchPack(
     mkdirSync(packPath, { recursive: true });
     logger.info("Created pitch pack directory", { packPath });
 
-    // Write summary.md
-    const summaryPath = join(packPath, "summary.md");
-    writeFileSync(summaryPath, generateSummary(clientName, issues), "utf-8");
-    logger.info("Wrote summary.md");
-
-    // Write email.md
-    const emailPath = join(packPath, "email.md");
-    writeFileSync(emailPath, generateEmail(clientName, issues), "utf-8");
-    logger.info("Wrote email.md");
-
-    // Write score.json
-    const scorePath = join(packPath, "score.json");
-    writeFileSync(
-      scorePath,
-      JSON.stringify(
-        { clientName, baseUrl, issues, timestamp: new Date() },
-        null,
-        2
-      ),
-      "utf-8"
-    );
-    logger.info("Wrote score.json");
-
-    // Write individual issue folders
+    // Create individual issue folders first and update screenshot/video filenames
     const issuesDir = join(packPath, "issues");
     mkdirSync(issuesDir, { recursive: true });
 
@@ -69,8 +46,8 @@ export function emitPitchPack(
       const issueDir = join(issuesDir, issueSlug);
       mkdirSync(issueDir, { recursive: true });
 
-      // Process screenshot/video BEFORE generating templates so filenames are correct
-      // Save screenshot from buffer if present in rawData
+      // Process screenshot/video BEFORE generating any templates
+      // This ensures all filenames are updated for use in summary, email, etc.
       if (issue.rawData?.screenshotBuffer) {
         // Generate unique screenshot name based on issue ID
         // Extract the descriptive part (remove timestamp suffix like -1234567890)
@@ -98,6 +75,37 @@ export function emitPitchPack(
         // Remove buffer from rawData before saving JSON
         delete issue.rawData.videoBuffer;
       }
+    });
+
+    // NOW write summary.md (after all screenshots are processed and filenames updated)
+    const summaryPath = join(packPath, "summary.md");
+    writeFileSync(summaryPath, generateSummary(clientName, issues), "utf-8");
+    logger.info("Wrote summary.md");
+
+    // Write email.md
+    const emailPath = join(packPath, "email.md");
+    writeFileSync(emailPath, generateEmail(clientName, issues), "utf-8");
+    logger.info("Wrote email.md");
+
+    // Write score.json
+    const scorePath = join(packPath, "score.json");
+    writeFileSync(
+      scorePath,
+      JSON.stringify(
+        { clientName, baseUrl, issues, timestamp: new Date() },
+        null,
+        2
+      ),
+      "utf-8"
+    );
+    logger.info("Wrote score.json");
+
+    // Write finding.md and prompt.md for each issue (screenshots already processed above)
+    issues.forEach((issue, index) => {
+      const issueSlug = `${String(index + 1).padStart(2, "0")}-${kebabCase(
+        issue.title
+      )}`;
+      const issueDir = join(issuesDir, issueSlug);
 
       // Write finding.md (after screenshot/video processing so filenames are correct)
       writeFileSync(
