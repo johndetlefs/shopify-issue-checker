@@ -11,6 +11,7 @@ import { logger } from "./core/logger";
 import { discoverTargets } from "./core/crawl";
 import { scoreIssues } from "./core/score";
 import { emitPitchPack } from "./core/emit";
+import { deduplicateIssues } from "./core/deduplicate";
 import { skipLinkCheck } from "./checks/skip-link";
 import { megaMenuCheck } from "./checks/mega-menu";
 
@@ -78,11 +79,15 @@ export async function runAudit(
 
     logger.info(`Found ${allIssues.length} issues`);
 
-    // Step 3: Score issues
-    logger.info("Scoring and prioritizing issues...");
-    const scoredIssues = scoreIssues(allIssues);
+    // Step 3: Deduplicate issues
+    logger.info("Deduplicating site-wide issues...");
+    const deduplicatedIssues = deduplicateIssues(allIssues);
 
-    // Step 4: Emit pitch pack
+    // Step 4: Score issues
+    logger.info("Scoring and prioritizing issues...");
+    const scoredIssues = scoreIssues(deduplicatedIssues);
+
+    // Step 5: Emit pitch pack
     logger.info("Generating pitch pack...");
     const pitchPackPath = emitPitchPack(clientName, baseUrl, scoredIssues);
 

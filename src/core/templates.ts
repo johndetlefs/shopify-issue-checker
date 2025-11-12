@@ -15,6 +15,18 @@ export function generateSummary(clientName: string, issues: Issue[]): string {
 
   const topIssues = issues.slice(0, 5);
 
+  // Helper function to format path(s)
+  const formatPaths = (path: string | string[]): string => {
+    if (Array.isArray(path)) {
+      return path.length > 3
+        ? `${path.slice(0, 3).join(", ")}, and ${path.length - 3} more page${
+            path.length - 3 > 1 ? "s" : ""
+          }`
+        : path.join(", ");
+    }
+    return path;
+  };
+
   return `# ${clientName} — Accessibility & Usability Audit Summary
 
 **Generated:** ${new Date().toLocaleDateString()}
@@ -45,7 +57,7 @@ ${topIssues
 - **Impact:** ${issue.impact}
 - **Effort to Fix:** ${issue.effort}
 - **WCAG Criteria:** ${issue.wcagCriteria?.join(", ") || "N/A"}
-- **Found on:** ${issue.path}
+- **Found on:** ${formatPaths(issue.path)}
 
 **Description:** ${issue.description}
 
@@ -61,7 +73,9 @@ ${topIssues
 ${issues
   .map(
     (issue, i) =>
-      `${i + 1}. **${issue.title}** (${issue.severity}) — ${issue.path}`
+      `${i + 1}. **${issue.title}** (${issue.severity}) — ${formatPaths(
+        issue.path
+      )}`
   )
   .join("\n")}
 
@@ -115,6 +129,20 @@ P.S. — These accessibility improvements typically increase conversions by 5-15
 }
 
 export function generateFinding(issue: Issue): string {
+  // Helper function to format path(s)
+  const formatPaths = (path: string | string[]): string => {
+    if (Array.isArray(path)) {
+      if (path.length === 1) return path[0];
+      return path.map((p, i) => `${i + 1}. ${p}`).join("\n");
+    }
+    return path;
+  };
+
+  const pathLabel =
+    Array.isArray(issue.path) && issue.path.length > 1
+      ? "Found on (multiple pages)"
+      : "Found on";
+
   return `# ${issue.title}
 
 **Severity:** ${issue.severity}
@@ -166,7 +194,7 @@ ${issue.solution}
 
 ## Technical Details
 
-**Found on:** ${issue.path}
+**${pathLabel}:** ${formatPaths(issue.path)}
 
 ${
   issue.rawData
@@ -183,6 +211,20 @@ See \`prompt.md\` for AI-assisted fix instructions.
 }
 
 export function generatePrompt(issue: Issue): string {
+  // Helper function to format path(s)
+  const formatPaths = (path: string | string[]): string => {
+    if (Array.isArray(path)) {
+      if (path.length === 1) return path[0];
+      return path.map((p, i) => `${i + 1}. ${p}`).join("\n");
+    }
+    return path;
+  };
+
+  const pathLabel =
+    Array.isArray(issue.path) && issue.path.length > 1
+      ? "Found on (multiple pages)"
+      : "Found on";
+
   return `# Fix Prompt: ${issue.title}
 
 ## Context
@@ -191,7 +233,7 @@ You are fixing an accessibility/usability issue on a Shopify storefront.
 
 **Issue:** ${issue.title}
 **WCAG Criteria:** ${issue.wcagCriteria?.join(", ") || "Not applicable"}
-**Found on:** ${issue.path}
+**${pathLabel}:** ${formatPaths(issue.path)}
 
 ## Requirements
 

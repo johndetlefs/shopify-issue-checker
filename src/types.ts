@@ -27,7 +27,7 @@ export interface Issue {
   impact: Impact;
   effort: Effort;
   wcagCriteria?: string[]; // e.g., ["1.3.1", "4.1.2"]
-  path: string; // URL path where issue was found
+  path: string | string[]; // URL path(s) where issue was found - array for site-wide issues
   screenshot?: string; // Path to screenshot file (relative to issue folder)
   video?: string; // Path to video file (relative to issue folder)
   codeSnippet?: string; // HTML/CSS code snippet showing the problem
