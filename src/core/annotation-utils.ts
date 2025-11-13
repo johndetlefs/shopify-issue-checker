@@ -18,9 +18,11 @@ export interface AnnotateElementOptions {
   selector: string;
 
   /**
-   * Text to display in the annotation label
+   * Text to display in the annotation label.
+   * Can be a static string or a function that receives the element
+   * and returns a string (useful for dynamic labels like dimensions).
    */
-  labelText: string;
+  labelText: string | ((element: Element) => string);
 
   /**
    * Type identifier for this annotation (e.g., 'focus-indicator', 'missing-alt')
@@ -180,9 +182,20 @@ export async function annotateElement(
   // Find and annotate the element
   const locatorToUse = containerLocator || page.locator("body");
 
-  const annotationResult = await locatorToUse.evaluate(
+  const annotationResult: {
+    error?: string;
+    success?: boolean;
+    elementInfo?: any;
+  } = await locatorToUse.evaluate(
     (container, params) => {
-      const { selector, labelText, annotationType, config, filterFn } = params;
+      const {
+        selector,
+        labelText,
+        labelTextFn,
+        annotationType,
+        config,
+        filterFn,
+      } = params;
 
       // Find all matching elements
       const elements = Array.from(container.querySelectorAll(selector));
@@ -214,6 +227,15 @@ export async function annotateElement(
 
       const rect = targetElement.getBoundingClientRect();
 
+      // Determine label text (static or computed from element)
+      let finalLabelText: string;
+      if (labelTextFn) {
+        const labelFunc = new Function("element", "return " + labelTextFn)();
+        finalLabelText = labelFunc(targetElement);
+      } else {
+        finalLabelText = labelText;
+      }
+
       // Create overlay
       const overlay = document.createElement("div");
       overlay.setAttribute("data-a11y-annot", "true");
@@ -240,7 +262,7 @@ export async function annotateElement(
       const label = document.createElement("div");
       label.setAttribute("data-a11y-annot", "true");
       label.setAttribute("data-a11y-annot-type", annotationType);
-      label.textContent = labelText;
+      label.textContent = finalLabelText;
       label.style.cssText = `
         position: fixed;
         background: ${config.label.backgroundColor};
@@ -284,25 +306,61 @@ export async function annotateElement(
         (targetElement as HTMLElement).setAttribute("data-a11y-marked", "true");
       } catch (e) {}
 
-      // Return element info
-      return {
-        success: true,
-        elementInfo: {
-          tag: targetElement.tagName,
-          text: (targetElement as HTMLElement).innerText?.substring(0, 50),
-          src: (targetElement as HTMLImageElement).src?.substring(0, 100),
-          rect: {
-            x: rect.left,
-            y: rect.top,
-            width: rect.width,
-            height: rect.height,
-          },
-        },
-      };
+      // Scroll element into view so it's visible in screenshot
+      targetElement.scrollIntoView({ behavior: "instant", block: "center" });
+
+      // Wait a moment for scroll to complete, then update positions
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          // Recalculate rect after scroll
+          const newRect = targetElement.getBoundingClientRect();
+
+          // Update overlay position
+          overlay.style.left = `${newRect.left - padding}px`;
+          overlay.style.top = `${newRect.top - padding}px`;
+          overlay.style.width = `${newRect.width + padding * 2}px`;
+          overlay.style.height = `${newRect.height + padding * 2}px`;
+
+          // Update label position
+          const spaceBelow = window.innerHeight - newRect.bottom;
+          const spaceAbove = newRect.top;
+
+          if (spaceBelow >= labelMinHeight + labelGap) {
+            label.style.top = `${newRect.bottom + labelGap}px`;
+            label.style.left = `${Math.max(10, newRect.left)}px`;
+          } else if (spaceAbove >= labelMinHeight + labelGap) {
+            label.style.top = `${Math.max(
+              10,
+              newRect.top - labelMinHeight - labelGap
+            )}px`;
+            label.style.left = `${Math.max(10, newRect.left)}px`;
+          } else {
+            label.style.top = `${newRect.top}px`;
+            label.style.left = `${newRect.left + 20}px`;
+          }
+
+          resolve({
+            success: true,
+            elementInfo: {
+              tag: targetElement.tagName,
+              text: (targetElement as HTMLElement).innerText?.substring(0, 50),
+              src: (targetElement as HTMLImageElement).src?.substring(0, 100),
+              rect: {
+                x: newRect.left,
+                y: newRect.top,
+                width: newRect.width,
+                height: newRect.height,
+              },
+            },
+          });
+        }, 300);
+      });
     },
     {
       selector,
-      labelText,
+      labelText: typeof labelText === "string" ? labelText : "",
+      labelTextFn:
+        typeof labelText === "function" ? labelText.toString() : undefined,
       annotationType,
       config,
       filterFn: filter ? filter.toString() : undefined,
@@ -319,8 +377,19 @@ export async function annotateElement(
     return null;
   }
 
-  // Wait for annotation to render
-  await page.waitForTimeout(waitAfterAnnotation);
+  // Wait for annotation to render (but reduce wait time to minimize chance of page auto-scrolling)
+  await page.waitForTimeout(500);
+
+  // Re-scroll to element right before screenshot (in case page JS scrolled us away)
+  await page.evaluate(() => {
+    const marked = document.querySelector('[data-a11y-marked="true"]');
+    if (marked) {
+      marked.scrollIntoView({ behavior: "instant", block: "center" });
+    }
+  });
+
+  // Minimal wait for scroll, then capture immediately
+  await page.waitForTimeout(50);
 
   // Capture screenshot
   const screenshotBuffer = await page.screenshot({ fullPage: false });

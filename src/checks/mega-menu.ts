@@ -1903,31 +1903,338 @@ WCAG Success Criterion: 1.4.3 Contrast (Minimum) (Level AA)`,
         });
       }
 
-      // Check 12: Touch target size
+      // Check 12: Touch target size (mobile context - most critical)
+      // Save current viewport
+      const currentViewport = page.viewportSize();
+
+      // Switch to mobile viewport for touch target testing
+      await page.setViewportSize({ width: 375, height: 667 }); // iPhone SE size
+      await page.waitForTimeout(500); // Let responsive layout adjust
+
       const smallTargets = await page.evaluate(() => {
-        const interactive = Array.from(
-          document.querySelectorAll("nav a, nav button")
+        // First, try to open mobile menu if it exists
+        const mobileMenuButtons = Array.from(
+          document.querySelectorAll(
+            'button[aria-label*="menu" i], button[aria-label*="navigation" i], button[class*="menu" i], button[class*="hamburger" i], [aria-controls*="menu" i]'
+          )
         );
-        const small = interactive.filter((el) => {
+        const mobileMenuButton = mobileMenuButtons.find((el) => {
           const rect = el.getBoundingClientRect();
-          // WCAG 2.5.5 recommends 44×44px minimum (AAA)
-          // iOS HIG recommends 44pt minimum
-          // Material Design recommends 48dp minimum
-          // We'll use 44px as threshold
-          return rect.width < 44 || rect.height < 44;
+          return rect.width > 0 && rect.height > 0; // Must be visible
         });
 
-        return {
-          count: small.length,
-          examples: small.slice(0, 5).map((el) => ({
-            text: el.textContent?.trim().substring(0, 30),
-            width: Math.round(el.getBoundingClientRect().width),
-            height: Math.round(el.getBoundingClientRect().height),
-          })),
-        };
+        if (mobileMenuButton) {
+          (mobileMenuButton as HTMLElement).click();
+        }
+
+        // Then try to expand a mega menu dropdown
+        const menuTriggers = Array.from(
+          document.querySelectorAll(
+            'nav a, nav button, [class*="menu"] a, [class*="menu"] button'
+          )
+        );
+        const trigger = menuTriggers.find((el) =>
+          el.hasAttribute("aria-haspopup")
+        );
+        if (trigger) {
+          (trigger as HTMLElement).dispatchEvent(
+            new MouseEvent("mouseenter", { bubbles: true })
+          );
+          (trigger as HTMLElement).click(); // Also try click for mobile menus
+        }
+
+        // Small delay to let menu open
+        return new Promise<{
+          count: number;
+          examples: Array<{ text: string; width: number; height: number }>;
+        }>((resolve) => {
+          setTimeout(() => {
+            const interactive = Array.from(
+              document.querySelectorAll("nav a, nav button")
+            );
+            const small = interactive.filter((el) => {
+              const rect = el.getBoundingClientRect();
+              const styles = window.getComputedStyle(el);
+              const text = (el as HTMLElement).innerText?.trim() || "";
+              const href = (el as HTMLAnchorElement).href || "";
+
+              // Must be visible
+              const isVisible =
+                rect.width > 0 &&
+                rect.height > 0 &&
+                styles.display !== "none" &&
+                styles.visibility !== "hidden" &&
+                parseFloat(styles.opacity || "1") > 0.1;
+
+              if (!isVisible) return false;
+
+              // Exclude logos (usually in <a> wrapping <img>, large width, or no text)
+              const isLogo =
+                el.querySelector("img") !== null ||
+                (text.length === 0 && rect.width > 100) ||
+                el.closest('[class*="logo"]') !== null;
+
+              if (isLogo) return false;
+
+              // Exclude utility items (search, cart, account)
+              const utilityKeywords = [
+                "search",
+                "cart",
+                "bag",
+                "account",
+                "login",
+                "wishlist",
+              ];
+              const isUtility =
+                utilityKeywords.some(
+                  (keyword) =>
+                    text.toLowerCase().includes(keyword) ||
+                    href.toLowerCase().includes(keyword)
+                ) || el.closest('[class*="utility"]') !== null;
+
+              if (isUtility) return false;
+
+              // WCAG 2.5.5: 44×44px minimum for touch targets
+              return rect.width < 44 || rect.height < 44;
+            });
+
+            resolve({
+              count: small.length,
+              examples: small.slice(0, 5).map((el) => ({
+                text: el.textContent?.trim().substring(0, 30),
+                width: Math.round(el.getBoundingClientRect().width),
+                height: Math.round(el.getBoundingClientRect().height),
+              })),
+            });
+          }, 300);
+        });
+      });
+
+      logger.info("Small touch targets detected via page.evaluate", {
+        count: smallTargets.count,
+        examples: smallTargets.examples,
       });
 
       if (smallTargets.count > 0) {
+        // Capture screenshot with annotation for small touch targets
+        const smallTargetsRawData: {
+          screenshotBuffer?: Buffer;
+          examples: typeof smallTargets.examples;
+          count: number;
+        } = {
+          examples: smallTargets.examples,
+          count: smallTargets.count,
+        };
+
+        try {
+          // Expand mega menu first to reveal all targets
+          await page.evaluate(() => {
+            const menuTriggers = Array.from(
+              document.querySelectorAll(
+                'nav a, nav button, [class*="menu"] a, [class*="menu"] button'
+              )
+            );
+            const trigger = menuTriggers.find((el) =>
+              el.hasAttribute("aria-haspopup")
+            );
+            if (trigger) {
+              (trigger as HTMLElement).dispatchEvent(
+                new MouseEvent("mouseenter", { bubbles: true })
+              );
+            }
+          });
+
+          // Wait for menu to open
+          await page.waitForTimeout(500);
+
+          // First, find which element we'll be annotating for debugging
+          const targetInfo = await page.evaluate(() => {
+            const allTargets = Array.from(
+              document.querySelectorAll("nav a, nav button")
+            );
+            const filtered = allTargets.filter((el) => {
+              const rect = el.getBoundingClientRect();
+              const styles = window.getComputedStyle(el);
+              const text = el.textContent?.toLowerCase() || "";
+              const ariaLabel =
+                el.getAttribute("aria-label")?.toLowerCase() || "";
+              const title = el.getAttribute("title")?.toLowerCase() || "";
+              const allText = `${text} ${ariaLabel} ${title}`;
+
+              const isVisible =
+                rect.width > 0 &&
+                rect.height > 0 &&
+                styles.display !== "none" &&
+                styles.visibility !== "hidden" &&
+                parseFloat(styles.opacity || "1") > 0.1;
+
+              if (!isVisible) return false;
+
+              const isTooSmall = rect.width < 44 || rect.height < 44;
+              if (!isTooSmall) return false;
+
+              // Check for offscreen positioning tricks (common for hiding elements accessibly)
+              const hasOffscreenPositioning =
+                styles.position === "absolute" &&
+                (rect.left < -9999 ||
+                  rect.top < -9999 ||
+                  styles.clip === "rect(0px, 0px, 0px, 0px)" ||
+                  styles.clipPath === "inset(50%)");
+
+              if (hasOffscreenPositioning) return false;
+
+              // Check ancestors for hidden
+              let ancestor = el.parentElement;
+              while (ancestor && ancestor !== document.body) {
+                const ancestorStyles = window.getComputedStyle(ancestor);
+                if (
+                  ancestorStyles.display === "none" ||
+                  ancestorStyles.visibility === "hidden" ||
+                  parseFloat(ancestorStyles.opacity || "1") < 0.1
+                ) {
+                  return false;
+                }
+                ancestor = ancestor.parentElement;
+              }
+
+              const isLogo =
+                el.querySelector("img") ||
+                (rect.width > 150 && !el.textContent?.trim()) ||
+                el.className.toLowerCase().includes("logo");
+              const isUtility =
+                /search|cart|bag|account|login|sign in|wishlist/.test(allText);
+
+              return !isLogo && !isUtility;
+            });
+
+            if (filtered[0]) {
+              const rect = filtered[0].getBoundingClientRect();
+              return {
+                text: filtered[0].textContent?.trim(),
+                x: rect.left,
+                y: rect.top,
+                width: rect.width,
+                height: rect.height,
+                scrollY: window.scrollY,
+                absoluteY: rect.top + window.scrollY,
+                totalFound: filtered.length,
+              };
+            }
+            return { totalFound: filtered.length };
+          });
+
+          logger.info("Target element to annotate", targetInfo);
+
+          // Only try to annotate if we found qualifying visible elements
+          let annotationResult = null;
+          if (targetInfo && targetInfo.text && targetInfo.totalFound > 0) {
+            // Use the annotation helper with dynamic label showing dimensions
+            annotationResult = await annotateElement(page, {
+              selector: "nav a, nav button",
+              labelText: (el: Element) => {
+                const rect = el.getBoundingClientRect();
+                const width = Math.round(rect.width);
+                const height = Math.round(rect.height);
+                return `${width}×${height}px - Too small!`;
+              },
+              annotationType: "small-target",
+              filter: (el: Element) => {
+                const rect = el.getBoundingClientRect();
+                const styles = window.getComputedStyle(el);
+
+                // Must be visible (element itself has dimensions and not hidden)
+                const isVisible =
+                  rect.width > 0 &&
+                  rect.height > 0 &&
+                  styles.display !== "none" &&
+                  styles.visibility !== "hidden" &&
+                  parseFloat(styles.opacity || "1") > 0.1;
+
+                if (!isVisible) return false;
+
+                // Check ancestors for visibility too
+                let ancestor = el.parentElement;
+                while (ancestor && ancestor !== document.body) {
+                  const ancestorStyles = window.getComputedStyle(ancestor);
+                  if (
+                    ancestorStyles.display === "none" ||
+                    ancestorStyles.visibility === "hidden" ||
+                    parseFloat(ancestorStyles.opacity || "1") < 0.1
+                  ) {
+                    return false;
+                  }
+                  ancestor = ancestor.parentElement;
+                }
+
+                // Must be too small (< 44×44px)
+                const isTooSmall = rect.width < 44 || rect.height < 44;
+
+                if (!isTooSmall) return false;
+
+                // Exclude logos (images, large width with no text, or "logo" in class)
+                const isLogo =
+                  el.querySelector("img") ||
+                  (rect.width > 150 && !el.textContent?.trim()) ||
+                  el.className.toLowerCase().includes("logo");
+
+                if (isLogo) return false;
+
+                // Exclude utility items (search, cart, account, etc.)
+                const text = el.textContent?.toLowerCase() || "";
+                const ariaLabel =
+                  el.getAttribute("aria-label")?.toLowerCase() || "";
+                const title = el.getAttribute("title")?.toLowerCase() || "";
+                const allText = `${text} ${ariaLabel} ${title}`;
+                const isUtility =
+                  /search|cart|bag|account|login|sign in|wishlist/.test(
+                    allText
+                  );
+
+                if (isUtility) return false;
+
+                // Final check: element must actually be painted (not off-screen via positioning)
+                const hasOffscreenPositioning =
+                  styles.position === "absolute" &&
+                  (rect.left < -9999 ||
+                    rect.top < -9999 ||
+                    styles.clip === "rect(0px, 0px, 0px, 0px)" ||
+                    styles.clipPath === "inset(50%)");
+
+                return !hasOffscreenPositioning;
+              },
+              waitAfterAnnotation: 1500,
+            });
+          } else {
+            logger.warn(
+              "No truly visible small touch targets found - skipping screenshot annotation"
+            );
+          }
+
+          // Restore viewport
+          await page.setViewportSize({ width: 1280, height: 720 });
+
+          if (annotationResult) {
+            smallTargetsRawData.screenshotBuffer =
+              annotationResult.screenshotBuffer;
+            logger.info(
+              "Small touch target annotation captured",
+              annotationResult.elementInfo
+            );
+          } else {
+            logger.warn(
+              "Could not annotate small touch target - no suitable element found"
+            );
+          }
+        } catch (err) {
+          logger.warn("Failed to capture small touch target screenshot", {
+            error: err instanceof Error ? err.message : String(err),
+          });
+          // Restore viewport even on error
+          try {
+            await page.setViewportSize({ width: 1280, height: 720 });
+          } catch {}
+        }
+
         issues.push({
           id: `mega-menu-small-touch-targets-${Date.now()}`,
           title: "Navigation Has Small Touch Targets",
@@ -1937,6 +2244,9 @@ WCAG Success Criterion: 1.4.3 Contrast (Minimum) (Level AA)`,
           effort: "low",
           wcagCriteria: ["2.5.5"],
           path: target.url,
+          screenshot: smallTargetsRawData.screenshotBuffer
+            ? "screenshot.png"
+            : undefined,
           solution:
             "Increase clickable area to at least 44×44px using padding or min-height/min-width. Ensure adequate spacing between adjacent targets.",
           copilotPrompt: `You are fixing: Touch targets too small in navigation (WCAG 2.5.5)
@@ -2013,7 +2323,10 @@ ${JSON.stringify(smallTargets.examples, null, 2)}
 
 WCAG Success Criterion: 2.5.5 Target Size (Level AAA)
 Also improves: Mobile conversion rates, user satisfaction, reduced mis-taps`,
-          rawData: smallTargets,
+          rawData: {
+            ...smallTargetsRawData,
+            screenshotBuffer: smallTargetsRawData.screenshotBuffer,
+          },
         });
       }
 
