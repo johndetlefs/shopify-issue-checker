@@ -21,8 +21,9 @@ This repository contains a **read‑only sales/lead‑gen tool** that scans a pu
    - Missing skip link
    - Skip link not first focusable
    - Broken skip link target
-2. **Smart navigation finder** — Pattern-based detection with scoring
-3. **Mega-menu comprehensive** — 17 checks covering:
+2. **Smart navigation finder** — Pattern-based detection with scoring (see `docs/NAV-FINDER-SUMMARY.md`)
+3. **Smart footer finder** — Pattern-based detection with content validation (see `docs/FOOTER-FINDER-SUMMARY.md`)
+4. **Mega-menu comprehensive** — 17 checks covering:
    - **Keyboard accessibility** (10): Navigation, focus, ARIA, mobile hamburger
    - **Screen reader support** (4): Links as buttons, alt text, form labels, empty links, landmarks
    - **Usability** (3): Color contrast, touch targets, vague link text
@@ -92,6 +93,12 @@ See `docs/ENV_CHECKLIST.md` for a quick verification list.
 - Prefer **TypeScript**.
 - Keep checks small, composable, and aligned with WCAG 2.1 AA.
 - Add rationale and a Copilot‑ready prompt to every new issue type.
+- **For new UI component detection**, follow the process in `.github/DISCOVER_COMMON_PATTERNS.md`:
+  1. Capture HTML from 10 reference Shopify sites
+  2. Analyze patterns (semantic, ARIA, classes, content)
+  3. Implement scoring-based detection with fallbacks
+  4. Test and iterate to 80%+ success rate
+  - See completed examples: `docs/NAV-FINDER-SUMMARY.md`, `docs/FOOTER-FINDER-SUMMARY.md`
 
 ---
 

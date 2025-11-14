@@ -1,6 +1,9 @@
 /**
- * Simple HTML capture for manual analysis
- * No assumptions, just raw HTML dump
+ * Capture full page HTML for pattern analysis
+ * Note: Despite the filename, this captures the ENTIRE page (header, nav, main, footer)
+ * so the HTML can be reused for analyzing any UI component.
+ *
+ * Usage: npx tsx utilities/capture-nav-html.ts
  */
 
 import { chromium } from "@playwright/test";
@@ -19,8 +22,8 @@ async function captureHTML(url: string, name: string) {
     const html = await page.content();
 
     // Save it
-    mkdirSync(`./nav-analysis/${name}`, { recursive: true });
-    writeFileSync(`./nav-analysis/${name}/page.html`, html);
+    mkdirSync(`./pattern-analysis/${name}`, { recursive: true });
+    writeFileSync(`./pattern-analysis/${name}/desktop.html`, html);
 
     console.log(`✅ ${name}: Saved full page HTML`);
   } catch (error) {

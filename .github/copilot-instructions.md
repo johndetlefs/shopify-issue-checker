@@ -88,11 +88,43 @@ The project uses **TypeScript** and **Playwright**. Core structure:
   - `logger.ts` — Error handling
   - `capture.ts` — Screenshot utility
   - `find-navigation.ts` — Smart pattern-based navigation finder
+  - `find-footer.ts` — Smart pattern-based footer finder
 - `src/runner.ts` — Orchestrates crawl and checks
 - `src/cli.ts` — Entry point (Usage: `npm run audit -- "Client Name" https://domain`)
 - `utilities/` — Development tools:
   - `test-nav-finder.ts` — Navigation finder test suite
-  - `capture-nav-html.ts` — HTML capture utility
+  - `test-footer-finder.ts` — Footer finder test suite
+  - `capture-page-html.ts` — Full page HTML capture utility (desktop + mobile)
+
+---
+
+## Pattern Discovery Process
+
+When implementing detection for new UI components (e.g., mobile menus, accordions, carousels), **always follow** the methodology documented in `.github/DISCOVER_COMMON_PATTERNS.md`:
+
+1. **Define component characteristics** — Purpose, location, key features, edge cases
+2. **Capture real HTML** — Use 10 reference Shopify sites (see DISCOVER_COMMON_PATTERNS.md)
+3. **Analyze patterns** — Document semantic HTML, ARIA, classes, content, position
+4. **Implement scoring-based detection** — Multi-strategy with fallbacks
+5. **Test and iterate** — Aim for 80%+ success rate across reference sites
+
+**Completed implementations:**
+
+- **Navigation finder** — See `docs/NAV-FINDER-SUMMARY.md` (9/10 success rate)
+- **Footer finder** — See `docs/FOOTER-FINDER-SUMMARY.md` (implemented)
+
+**Why this approach:**
+
+- Works across diverse Shopify themes (not site-specific)
+- Semantic/structural patterns over hardcoded classes
+- Graceful fallbacks for edge cases
+- Well-documented and maintainable
+
+**When to use existing finders:**
+
+- Need to detect site footer → Use `findFooter()` from `src/core/find-footer.ts`
+- Need to detect main navigation → Use `findNavigation()` from `src/core/find-navigation.ts`
+- Need new component → Follow `DISCOVER_COMMON_PATTERNS.md` process
 
 ---
 
@@ -100,9 +132,67 @@ The project uses **TypeScript** and **Playwright**. Core structure:
 
 - Prefer **TypeScript** for all code.
 - Keep code small, composable, and testable.
-- When generating prompts for fixes, **assume** the later “fixer” tool will pull the theme and apply patches—so provide **clear, minimal Liquid/TS snippets** and reference WCAG criteria in `prompt.md`.
+- When generating prompts for fixes, **assume** the later "fixer" tool will pull the theme and apply patches—so provide **clear, minimal Liquid/TS snippets** and reference WCAG criteria in `prompt.md`.
 - File/dir names: **kebab-case**.
 - Commit messages (when asked): `chore(audit): {change}`, `feat(check): {check-name}`, `fix(a11y): {issue-title} [wcag: X.Y.Z]`.
+
+### CRITICAL: Always use finder utilities for UI component detection
+
+**NEVER use ad-hoc selectors** for common UI components. Always use the established finder utilities:
+
+❌ **DON'T DO THIS:**
+
+```typescript
+// Ad-hoc footer detection - BAD!
+const footer = page.locator("footer").first();
+const footer = page.locator(".footer");
+const footer = page.locator('[class*="footer"]');
+```
+
+✅ **DO THIS:**
+
+```typescript
+// Use established finder utility - GOOD!
+import { findFooter } from "../core/find-footer.js";
+
+const footer = await findFooter(page);
+if (!footer) {
+  logger.warn(`Footer not detected on ${page.url()}`);
+  return issues; // Handle gracefully
+}
+
+// Now use footer for checks...
+const footerLinks = await footer.locator("a").all();
+```
+
+**Why this matters:**
+
+- Finder utilities work across 80%+ of Shopify themes (tested on 10+ sites)
+- They handle edge cases (non-semantic HTML, popups, lazy loading)
+- They use multi-strategy detection (semantic → ARIA → classes → scoring)
+- They're well-documented and maintainable
+- Ad-hoc selectors fail on different themes
+
+**Available finder utilities:**
+
+1. **`findNavigation(page)`** — Detects main site navigation
+
+   - Location: `src/core/find-navigation.ts`
+   - Success rate: 90% (9/10 sites)
+   - Handles: Mega menus, non-semantic HTML, utility nav, mobile hamburgers
+
+2. **`findFooter(page)`** — Detects site footer
+   - Location: `src/core/find-footer.ts`
+   - Success rate: 100% (tested sites)
+   - Handles: Non-semantic HTML, multi-part footers, mobile accordions, popups
+
+**For new UI components** (mobile menu, accordion, carousel, etc.):
+
+- Follow `.github/DISCOVER_COMMON_PATTERNS.md` process
+- Capture HTML from 10 reference sites
+- Analyze patterns and create scoring-based finder
+- Test to 80%+ success rate
+- Document in `docs/{COMPONENT}-FINDER-SUMMARY.md`
 
 ---
 

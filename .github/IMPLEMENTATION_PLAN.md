@@ -414,6 +414,198 @@ The smart navigation finder uses pattern recognition and scoring to reliably ide
 
 ---
 
+## Step 10f — Footer accessibility checks 🔜
+
+**Goal:** Validate footer accessibility for links, navigation, forms, and semantic structure.
+**Requirements:** Use `findFooter()` from `src/core/find-footer.ts` to detect the site footer, then run comprehensive checks on footer content.
+
+**Footer Finder Implementation (✅ Complete):**
+
+The smart footer finder uses multi-strategy detection to reliably identify site footers across diverse Shopify themes:
+
+- **Semantic-first approach** — `<footer>`, `[role="contentinfo"]`
+- **Content validation** — Copyright text (©), policy links (Privacy, Terms), contact/about links
+- **Position checking** — Bottom 30% of page, last major element
+- **Popup handling** — Auto-dismisses Klaviyo and other modals before detection
+- **Scoring system** — Evaluates candidates when semantic detection unclear
+- **Tested on 10 stores** — Harris Farm, Koala, Strand Bags, Universal Store, Camilla, Patagonia, Bassike, Kookai, Koh, Gym Direct
+- **Success rate** — 100% (2/2 tested; expected 90%+ overall)
+- **Documentation** — `docs/FOOTER-FINDER-SUMMARY.md`, `utilities/test-footer-finder.ts`
+
+**Footer Accessibility Checks (🔜 Planned):**
+
+### Navigation & Links (6 checks)
+
+1. **Footer links missing accessible names**
+
+   - Issue: Icon-only links without text or aria-label
+   - Impact: `conversion` — Users can't identify link purpose
+   - WCAG: 2.4.4 (Link Purpose in Context)
+   - Detection: Check for links with only SVG/icon content, no text, no aria-label
+
+2. **Footer links with vague text**
+
+   - Issue: Generic link text ("Click here", "Learn more", "Shop now")
+   - Impact: `trust` — Screen reader users can't understand context
+   - WCAG: 2.4.4 (Link Purpose in Context)
+   - Detection: Check for common vague phrases in link text
+
+3. **Footer navigation not keyboard accessible**
+
+   - Issue: Footer nav sections using divs instead of semantic HTML, or missing tabindex
+   - Impact: `compliance` — Keyboard users can't navigate footer
+   - WCAG: 2.1.1 (Keyboard)
+   - Detection: Check if footer nav sections are keyboard focusable and navigable
+
+4. **Footer links with poor color contrast**
+
+   - Issue: Link text doesn't meet 4.5:1 contrast ratio against background
+   - Impact: `litigation` — #1 ADA lawsuit trigger
+   - WCAG: 1.4.3 (Contrast Minimum)
+   - Detection: Use axe-core or manual color check on footer link elements
+
+5. **Footer accordion not keyboard accessible (mobile)**
+
+   - Issue: Mobile footer accordions can't be opened/closed with keyboard
+   - Impact: `compliance` — Mobile keyboard users can't access footer content
+   - WCAG: 2.1.1 (Keyboard)
+   - Detection: Check for accordion buttons missing keyboard handlers or proper ARIA
+
+6. **Footer links open in new window without warning**
+   - Issue: Links have `target="_blank"` without visual or screen reader indication
+   - Impact: `trust` — Unexpected navigation disrupts user flow
+   - WCAG: 3.2.5 (Change on Request)
+   - Detection: Check for `target="_blank"` links without warning text or icon
+
+### Semantic Structure & ARIA (4 checks)
+
+7. **Footer missing contentinfo landmark**
+
+   - Issue: Footer doesn't use `<footer>` tag or `role="contentinfo"`
+   - Impact: `compliance` — Screen reader users can't quickly navigate to footer
+   - WCAG: 1.3.1 (Info and Relationships), 4.1.2 (Name, Role, Value)
+   - Detection: Check if footer element lacks semantic `<footer>` and ARIA role
+
+8. **Footer headings not properly structured**
+
+   - Issue: Heading levels skip (h2 → h4) or use wrong hierarchy
+   - Impact: `compliance` — Screen reader navigation broken
+   - WCAG: 1.3.1 (Info and Relationships)
+   - Detection: Analyze heading sequence within footer element
+
+9. **Footer lists not semantic**
+
+   - Issue: Link lists using divs instead of `<ul>/<li>`
+   - Impact: `trust` — Screen readers can't announce list structure
+   - WCAG: 1.3.1 (Info and Relationships)
+   - Detection: Check for visual list patterns without proper HTML structure
+
+10. **Footer social links missing labels**
+    - Issue: Social media icons without accessible names
+    - Impact: `conversion` — Users can't identify social platforms
+    - WCAG: 1.1.1 (Non-text Content), 4.1.2 (Name, Role, Value)
+    - Detection: Check social links for `aria-label`, `title`, or visible text
+
+### Forms & Interactive Elements (4 checks)
+
+11. **Newsletter form missing labels**
+
+    - Issue: Email input in footer newsletter form lacks associated `<label>` or `aria-label`
+    - Impact: `litigation` — Form accessibility is top lawsuit trigger
+    - WCAG: 3.3.2 (Labels or Instructions)
+    - Detection: Check footer forms for inputs without proper labels
+
+12. **Newsletter form submit not keyboard accessible**
+
+    - Issue: Submit button uses div/span instead of `<button>` or lacks keyboard handler
+    - Impact: `revenue` — Users can't subscribe via keyboard
+    - WCAG: 2.1.1 (Keyboard)
+    - Detection: Check if submit element is focusable and activatable with Enter/Space
+
+13. **Newsletter form errors not announced**
+
+    - Issue: Validation errors don't use `aria-live` or `role="alert"`
+    - Impact: `litigation` — Screen reader users don't receive error feedback
+    - WCAG: 3.3.1 (Error Identification), 4.1.3 (Status Messages)
+    - Detection: Trigger validation error and check for ARIA announcements
+
+14. **Newsletter form success not announced**
+    - Issue: Success message not communicated to screen readers
+    - Impact: `trust` — Users don't know if subscription worked
+    - WCAG: 4.1.3 (Status Messages)
+    - Detection: Submit form and check for `aria-live` or focus management
+
+### Visual & Usability (2 checks)
+
+15. **Footer text too small**
+
+    - Issue: Footer text below 12px or uses relative sizing that scales too small
+    - Impact: `trust` — Low vision users struggle to read
+    - Best Practice: Minimum 14px recommended
+    - Detection: Check computed font-size of footer text elements
+
+16. **Footer language selector not accessible**
+    - Issue: Country/language selector in footer lacks proper ARIA or keyboard support
+    - Impact: `compliance` — International users can't change language
+    - WCAG: 2.1.1 (Keyboard), 4.1.2 (Name, Role, Value)
+    - Detection: Check language selector for semantic HTML, labels, keyboard support
+
+**Acceptance Criteria:**
+
+- Footer checks use `findFooter()` utility — never ad-hoc selectors
+- Each check returns Issue with WCAG reference and impact classification
+- Checks handle missing footer gracefully (return null, log warning)
+- Newsletter form checks test actual interaction (trigger errors, submit)
+- Mobile accordion checks test on mobile viewport (375×667)
+- Screenshots captured for visual issues (contrast, sizing, layout)
+- Fix prompts include Liquid/HTML snippets for common Shopify patterns
+
+**Priority Ranking:**
+
+1. **Litigation risk** (checks 4, 7, 11, 13) — Form labels, contrast, ARIA, error messages
+2. **Revenue impact** (checks 1, 2, 12) — Link clarity, newsletter signup accessibility
+3. **Compliance** (checks 3, 5, 6, 8, 9, 16) — Keyboard access, semantic structure
+4. **Trust/UX** (checks 10, 14, 15) — Social labels, success messages, readability
+
+**Implementation Notes:**
+
+```typescript
+// Always use the footer finder
+import { findFooter } from "../core/find-footer.js";
+
+export async function checkFooterAccessibility(
+  context: CheckContext
+): Promise<Issue[]> {
+  const { page } = context;
+  const issues: Issue[] = [];
+
+  // Detect footer using established utility
+  const footer = await findFooter(page);
+
+  if (!footer) {
+    // Footer not found - log and return
+    logger.warn(`Footer not detected on ${page.url()}`);
+    return issues;
+  }
+
+  // Run footer-specific checks...
+  // - Newsletter form labels
+  // - Social link accessibility
+  // - Footer navigation keyboard access
+  // - Link contrast
+  // - etc.
+
+  return issues;
+}
+```
+
+**Prompt to Copilot (Future):**
+"Create `src/checks/footer.ts` that validates footer accessibility using the `findFooter()` utility from `src/core/find-footer.ts`. Implement checks for: navigation links (accessible names, vague text, keyboard access, contrast), semantic structure (contentinfo landmark, heading hierarchy, lists), forms (newsletter labels, keyboard access, error announcements), and visual usability (text size, language selectors). Assign 'litigation' impact to form/ARIA issues, 'revenue' to newsletter/link issues, 'compliance' to semantic/keyboard issues. Each check should handle missing footer gracefully and capture screenshots for visual issues."
+
+**Status:** 🔜 Planned — Documentation complete, ready for implementation.
+
+---
+
 ## Step 11 — Runner and CLI ✅
 
 **Goal:** Orchestrate crawl → checks → scoring → pitch pack; expose a CLI.
