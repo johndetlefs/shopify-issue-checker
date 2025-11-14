@@ -30,6 +30,7 @@ const sites: Record<string, string> = {
   kookai: "https://www.kookai.com.au/",
   koh: "https://koh.com/",
   gymdirect: "https://gymdirect.com.au/",
+  johndetlefs: "https://johndetlefs.com",
 };
 
 async function captureHTML(url: string, name: string) {

@@ -141,6 +141,10 @@ async function testFinder() {
 8. **Scroll before detecting** — Ensure lazy-loaded content is present
 9. **Close popups first** — Dismiss modals that block content
 10. **Position-aware scoring** — Location in DOM is a strong signal
+11. **🚨 CRITICAL: Find before clicking** — For interactive elements (buttons, triggers, close buttons), create explicit `find{Element}()` functions that return the locator. **NEVER** click without first verifying the element exists and is what you expect.
+12. **🚨 CRITICAL: Use clicks, not programmatic state** — For user interactions (open/close menus, toggle accordions), **ALWAYS** use `.click()` to simulate real user behavior. **NEVER** use `.evaluate()` to manipulate properties like `element.open = true` unless you're specifically testing non-interactive functionality.
+13. **🚨 CRITICAL: Verify interactions** — After clicking, verify the expected state change occurred. Don't assume clicks worked just because they didn't throw errors.
+14. **Return locators and success states** — Functions should return what they found (locators) and whether actions succeeded (booleans), not just perform blind operations.
 
 ---
 
@@ -156,6 +160,301 @@ async function testFinder() {
 8. **DON'T batch all sites at once** — Run capture/tests one site at a time
 9. **DON'T declare success prematurely** — 80%+ success required
 10. **DON'T forget edge cases** — Document failures and outliers
+11. **🚨 DON'T click blindly** — **NEVER** click an element without first finding it and verifying it's the correct element. Example: Don't loop through selectors and click the first match without confirming what you found.
+12. **🚨 DON'T manipulate state programmatically** — **NEVER** use `element.open = true`, `element.checked = true`, or similar DOM property manipulation for user interactions. Use `.click()` instead to trigger proper browser events.
+13. **🚨 DON'T assume clicks worked** — **NEVER** assume a click succeeded just because it didn't throw an error. Always verify the resulting state change.
+14. **🚨 DON'T mix detection and interaction** — Separate concerns: `find{Element}()` returns locators, `open{Component}()` / `close{Component}()` perform actions and return success booleans, `is{Component}Open()` checks state.
+
+---
+
+## 🎮 Interactive Components: Special Requirements
+
+**Interactive components** (mobile menus, accordions, modals, drawers, carousels) require additional rigor beyond static detection.
+
+### Required Functions
+
+For any interactive component, implement ALL of these:
+
+#### 1. `find{Component}()` — Main Detection
+
+Returns the component container and trigger element.
+
+```typescript
+export async function findMobileNav(
+  page: Page
+): Promise<MobileNavResult | null> {
+  // ... detection logic
+  return {
+    trigger: triggerButton, // The button that opens it
+    drawer: drawerContainer, // The container that appears
+    pattern: "drawer", // Pattern used for detection
+  };
+}
+```
+
+#### 2. `find{InteractiveElement}()` — Sub-Element Detection
+
+Returns specific interactive elements (buttons, links) **before** clicking them.
+
+```typescript
+export async function findCloseButton(
+  drawer: Locator
+): Promise<Locator | null> {
+  const selectors = [
+    'button[aria-label*="close" i]',
+    "button.close",
+    // ... more patterns
+  ];
+
+  for (const selector of selectors) {
+    const button = drawer.locator(selector).first();
+    if ((await button.count()) > 0 && (await button.isVisible())) {
+      return button; // FOUND - return it
+    }
+  }
+
+  return null; // NOT FOUND - explicit failure
+}
+```
+
+**❌ WRONG:**
+
+```typescript
+// BAD: Click without verifying what was found
+const closeSelectors = ["button.close", ".nav-close"];
+for (const selector of closeSelectors) {
+  try {
+    await drawer.locator(selector).click(); // What did we click??
+    break;
+  } catch {}
+}
+```
+
+#### 3. `open{Component}()` — Interaction
+
+Clicks to open, returns success boolean.
+
+```typescript
+export async function openMobileNav(result: MobileNavResult): Promise<boolean> {
+  try {
+    await result.trigger.click({ force: true, timeout: 2000 });
+    await result.drawer.page().waitForTimeout(500);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+```
+
+**✅ CORRECT:** Use `.click()` to simulate real user
+
+**❌ WRONG:**
+
+```typescript
+// BAD: Manipulate state programmatically
+await details.evaluate((el) => ((el as HTMLDetailsElement).open = true));
+// This doesn't trigger browser events or site JavaScript!
+```
+
+#### 4. `close{Component}()` — Interaction
+
+Finds close button, clicks it, returns success.
+
+```typescript
+export async function closeMobileNav(
+  result: MobileNavResult
+): Promise<boolean> {
+  // STEP 1: Find the close button
+  const closeButton = await findCloseButton(result.drawer);
+
+  if (!closeButton) {
+    // STEP 2: No close button found - use fallback
+    return await result.trigger.click({ force: true });
+  }
+
+  // STEP 3: Click the close button
+  await closeButton.click({ force: true, timeout: 2000 });
+  return true;
+}
+```
+
+**Process:**
+
+1. **Find** close button explicitly
+2. **Verify** it exists before clicking
+3. **Click** the actual button
+4. **Return** success/failure
+
+#### 5. `is{Component}Open()` — State Check
+
+Verifies current open/closed state.
+
+```typescript
+export async function isMobileNavOpen(
+  result: MobileNavResult
+): Promise<boolean> {
+  // Check classes first (more reliable than ARIA on some sites)
+  const classes = (await result.drawer.getAttribute("class")) || "";
+  if (classes.includes("open") || classes.includes("active")) {
+    return true;
+  }
+
+  // Check ARIA
+  const ariaHidden = await result.drawer.getAttribute("aria-hidden");
+  if (ariaHidden === "false") return true;
+  if (ariaHidden === "true") return false;
+
+  // Fallback to visibility
+  return await result.drawer.isVisible();
+}
+```
+
+### Test Validation Requirements
+
+When testing interactive components, verify ALL steps:
+
+```typescript
+// STEP 1: Detect component
+const result = await findMobileNav(page);
+if (!result) {
+  console.log("❌ Detection failed");
+  return;
+}
+console.log("✅ Detected mobile nav");
+
+// STEP 2: Verify initial state
+const initialState = await isMobileNavOpen(result);
+console.log(`Initial state: ${initialState ? "OPEN" : "CLOSED"}`);
+
+// STEP 3: Open the nav
+const openSuccess = await openMobileNav(result);
+const isOpen = await isMobileNavOpen(result);
+if (openSuccess && isOpen) {
+  console.log("✅ OPEN SUCCESS");
+} else {
+  console.log("❌ OPEN FAILED");
+}
+
+// STEP 4: Find close button (if applicable)
+const closeButton = await findCloseButton(result.drawer);
+if (closeButton) {
+  console.log("✅ Found close button");
+} else {
+  console.log("⚠️  No close button - will toggle trigger");
+}
+
+// STEP 5: Close the nav
+const closeSuccess = await closeMobileNav(result);
+const isClosed = !(await isMobileNavOpen(result));
+if (closeSuccess && isClosed) {
+  console.log("✅ CLOSE SUCCESS");
+} else {
+  console.log("❌ CLOSE FAILED");
+}
+```
+
+**Key principle:** Test each step independently, verify state changes, log what you found.
+
+### Why This Matters
+
+**Without explicit finding:**
+
+- You don't know WHAT you're clicking
+- False positives (clicked wrong element)
+- No debugging info when it fails
+- Can't verify your detection worked
+
+**Without using clicks:**
+
+- Browser events don't fire
+- Site JavaScript doesn't run
+- Animations don't trigger
+- ARIA states don't update
+- Tests pass but nothing actually happens
+
+**Without verification:**
+
+- Assume success when actually failed
+- No feedback for debugging
+- Can't distinguish partial failures
+
+### Anti-Pattern Examples
+
+❌ **Blind clicking:**
+
+```typescript
+// BAD: Loop and click first match
+const selectors = ["button.close", ".nav-close"];
+for (const sel of selectors) {
+  try {
+    await page.locator(sel).click();
+    break; // Did we click the right thing??
+  } catch {}
+}
+```
+
+❌ **Programmatic state manipulation:**
+
+```typescript
+// BAD: Set property directly
+await element.evaluate((el) => (el.open = true));
+// Browser doesn't know this happened!
+```
+
+❌ **No verification:**
+
+```typescript
+// BAD: Assume it worked
+await trigger.click();
+// Did the menu actually open?? Who knows!
+```
+
+### Correct Pattern Example
+
+✅ **Proper interactive component:**
+
+```typescript
+// 1. FIND the element explicitly
+export async function findCloseButton(
+  drawer: Locator
+): Promise<Locator | null> {
+  const selectors = ['button[aria-label*="close"]', "button.close"];
+  for (const sel of selectors) {
+    const btn = drawer.locator(sel).first();
+    if ((await btn.count()) > 0) {
+      return btn; // Return what we found
+    }
+  }
+  return null; // Explicit failure
+}
+
+// 2. CLICK the found element
+export async function closeComponent(drawer: Locator): Promise<boolean> {
+  const closeBtn = await findCloseButton(drawer); // Find first!
+
+  if (!closeBtn) {
+    return false; // Can't close without button
+  }
+
+  await closeBtn.click({ force: true }); // Real click
+  return true; // Success
+}
+
+// 3. VERIFY the state changed
+export async function isComponentOpen(drawer: Locator): Promise<boolean> {
+  return await drawer.isVisible(); // Check actual state
+}
+
+// 4. TEST validates everything
+const closeBtn = await findCloseButton(drawer);
+console.log(closeBtn ? "✅ Found close button" : "❌ No close button");
+
+const success = await closeComponent(drawer);
+const isClosed = !(await isComponentOpen(drawer));
+console.log(
+  success && isClosed ? "✅ Closed successfully" : "❌ Failed to close"
+);
+```
 
 ---
 
@@ -274,6 +573,10 @@ When writing `src/core/find-{component}.ts`:
 - [ ] Handle both visible and hidden elements appropriately
 - [ ] TypeScript types exported (`{Component}Candidate` interface)
 - [ ] JSDoc comments explaining approach
+- [ ] **🚨 For interactive components:** Separate `find{Element}()` functions for each interactive part (e.g., `findOpenButton()`, `findCloseButton()`)
+- [ ] **🚨 For interactive components:** Action functions return success booleans (e.g., `open{Component}(): Promise<boolean>`)
+- [ ] **🚨 For interactive components:** All interactions use `.click()`, never `.evaluate()` for state changes
+- [ ] **🚨 For interactive components:** State verification after every action (e.g., `is{Component}Open()` called after opening)
 
 ---
 
