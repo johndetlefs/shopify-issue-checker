@@ -308,7 +308,14 @@ WCAG Success Criteria: 2.1.1 Keyboard (Level A), 2.5.5 Target Size (Level AAA)`,
                   '[class*="close"], [class*="Close"], [class*="CLOSE"], [aria-label*="close" i], button[aria-label*="Close" i]'
                 )
               );
-              closeButtons.forEach((btn) => (btn as HTMLElement).click());
+              closeButtons.forEach((btn) => {
+                if (
+                  btn instanceof HTMLElement &&
+                  typeof btn.click === "function"
+                ) {
+                  btn.click();
+                }
+              });
             });
 
             // Press Escape multiple times to ensure all overlays are closed

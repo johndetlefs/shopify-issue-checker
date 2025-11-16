@@ -14,6 +14,7 @@ import { emitPitchPack } from "./core/emit";
 import { deduplicateIssues } from "./core/deduplicate";
 import { skipLinkCheck } from "./checks/skip-link";
 import { megaMenuCheck } from "./checks/mega-menu";
+import { mobileMenuCheck } from "./checks/mobile-menu";
 import { axeCoreCheck } from "./checks/axe-core";
 
 export async function runAudit(
@@ -69,6 +70,15 @@ export async function runAudit(
           });
 
           allIssues.push(...megaMenuIssues);
+
+          // Run mobile menu check (only on homepage for efficiency)
+          const mobileMenuIssues = await mobileMenuCheck.run({
+            page,
+            baseUrl,
+            target,
+          });
+
+          allIssues.push(...mobileMenuIssues);
         }
 
         // Run axe-core automated scan on all pages
