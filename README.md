@@ -93,6 +93,7 @@ See `docs/ENV_CHECKLIST.md` for a quick verification list.
 - Prefer **TypeScript**.
 - Keep checks small, composable, and aligned with WCAG 2.1 AA.
 - Add rationale and a Copilot‑ready prompt to every new issue type.
+- Use `withCleanup` plus `dismissPopupsWithGuards` (`src/core/popup-guard.ts`) whenever a check opens drawers/menus or dismisses modals so the next check starts from a clean, predictable UI state.
 - **For new UI component detection**, follow the process in `.github/DISCOVER_COMMON_PATTERNS.md`:
   1. Capture HTML from 10 reference Shopify sites
   2. Analyze patterns (semantic, ARIA, classes, content)

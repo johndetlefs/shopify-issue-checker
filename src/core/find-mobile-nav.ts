@@ -56,7 +56,7 @@ export async function findMobileNav(
  * Dismiss any blocking popups/modals on the page
  * Strategy: ESC key → close button → click overlay → fail
  */
-async function dismissPopups(page: Page): Promise<void> {
+export async function dismissPopups(page: Page): Promise<void> {
   const popupSelectors = [
     '[role="dialog"]:not([class*="nav"]):not([class*="menu"]):not([class*="drawer"])',
     '[aria-modal="true"]:not([class*="nav"]):not([class*="menu"]):not([class*="drawer"])',
@@ -150,6 +150,12 @@ async function dismissPopups(page: Page): Promise<void> {
  */
 export async function openMobileNav(result: MobileNavResult): Promise<void> {
   const page = result.drawer.page();
+
+  // If already open, nothing to do
+  if (await isMobileNavOpen(result)) {
+    console.log("  → Mobile nav already open, skipping trigger click");
+    return;
+  }
 
   if (result.pattern === "details") {
     // Log what we're about to click
@@ -270,6 +276,12 @@ export async function closeMobileNav(
   result: MobileNavResult
 ): Promise<boolean> {
   const page = result.drawer.page();
+
+  // If already closed, nothing to do
+  if (!(await isMobileNavOpen(result))) {
+    console.log("   → Mobile nav already closed");
+    return true;
+  }
 
   // Check if there are blocking popups that might hide the close button
   const popupSelectors = [

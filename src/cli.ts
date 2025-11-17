@@ -29,8 +29,22 @@ async function main() {
   console.log("║  Sales Pitch Pack Generator                    ║");
   console.log("╚════════════════════════════════════════════════╝\n");
 
+  // Parse arguments
   let clientName = process.argv[2];
   let baseUrl = process.argv[3];
+  let headed = false;
+
+  // Check for --headed flag in any position
+  if (process.argv.includes("--headed")) {
+    headed = true;
+    // Remove --headed from argv to avoid breaking existing logic
+    const headedIndex = process.argv.indexOf("--headed");
+    process.argv.splice(headedIndex, 1);
+
+    // Re-parse after removing flag
+    clientName = process.argv[2];
+    baseUrl = process.argv[3];
+  }
 
   // Interactive prompts if args not provided
   if (!clientName) {
@@ -60,8 +74,12 @@ async function main() {
 
   logger.info("Starting audit", { clientName, baseUrl });
 
+  if (headed) {
+    console.log("🔍 Running in HEADED mode (visible browser)\n");
+  }
+
   try {
-    const pitchPackPath = await runAudit(clientName, baseUrl);
+    const pitchPackPath = await runAudit(clientName, baseUrl, headed);
 
     console.log("\n✅ Audit Complete!");
     console.log(`📁 Pitch pack generated at: ${pitchPackPath}`);

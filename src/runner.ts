@@ -19,11 +19,15 @@ import { axeCoreCheck } from "./checks/axe-core";
 
 export async function runAudit(
   clientName: string,
-  baseUrl: string
+  baseUrl: string,
+  headed: boolean = false
 ): Promise<string> {
   logger.info(`Starting audit for ${clientName}`, { baseUrl });
 
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({
+    headless: !headed,
+    slowMo: headed ? 500 : 0, // Slow down actions when headed for better visibility
+  });
   const context = await browser.newContext({
     viewport: { width: 1280, height: 720 },
   });

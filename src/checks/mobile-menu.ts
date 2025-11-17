@@ -11,99 +11,198 @@
 
 import { Check, CheckContext, Issue } from "../types";
 import { logger } from "../core/logger";
+import { withCleanup } from "../core/check-utils";
 import {
   findMobileNav,
   openMobileNav,
   closeMobileNav,
   isMobileNavOpen,
+  dismissPopups,
 } from "../core/find-mobile-nav";
+import { dismissPopupsWithGuards } from "../core/popup-guard";
 import { annotateElement } from "../core/annotation-utils";
+
+type DesiredNavState = "open" | "closed";
+
+async function ensureMobileNavReady(
+  page: any,
+  mobileNav: any,
+  label: string,
+  desiredState: DesiredNavState = "open"
+): Promise<void> {
+  const guards =
+    desiredState === "open"
+      ? [
+          {
+            name: "mobile navigation drawer",
+            isOpen: () => isMobileNavOpen(mobileNav),
+            open: () => openMobileNav(mobileNav),
+            waitAfterOpenMs: 600,
+          },
+        ]
+      : [];
+
+  await dismissPopupsWithGuards(page, guards, { label });
+
+  if (desiredState === "closed") {
+    const stillOpen = await isMobileNavOpen(mobileNav);
+    if (stillOpen) {
+      logger.info("Closing mobile nav for closed-state check...");
+      await closeMobileNav(mobileNav);
+      await page.waitForTimeout(400);
+    }
+  }
+}
 
 export const mobileMenuCheck: Check = {
   name: "mobile-menu",
 
   async run(context: CheckContext): Promise<Issue[]> {
-    const issues: Issue[] = [];
     const { page, target } = context;
+    const originalViewport = page.viewportSize() ?? {
+      width: 1280,
+      height: 720,
+    };
 
     try {
-      logger.info(`Checking mobile menu on ${target.label}`);
+      // Wrap entire check in cleanup wrapper
+      return await withCleanup(page, async () => {
+        const issues: Issue[] = [];
 
-      // Set mobile viewport
-      await page.setViewportSize({ width: 375, height: 667 });
-      await page.waitForTimeout(500); // Wait for responsive styles to apply
+        try {
+          logger.info(`Checking mobile menu on ${target.label}`);
 
-      // Find mobile navigation using the established finder
-      const mobileNav = await findMobileNav(page);
+          // Set mobile viewport
+          await page.setViewportSize({ width: 375, height: 667 });
+          await page.waitForTimeout(500); // Wait for responsive styles to apply
 
-      if (!mobileNav) {
-        logger.warn("No mobile navigation found", { url: target.url });
-        return issues;
-      }
+          // Dismiss any popups that appear on mobile viewport change
+          logger.info("Dismissing popups before mobile nav detection...");
+          await dismissPopups(page);
+          await page.waitForTimeout(300);
 
-      logger.info("Found mobile navigation", {
-        pattern: mobileNav.pattern,
-        score: mobileNav.score,
-        reason: mobileNav.reason,
-      });
+          // Find mobile navigation using the established finder
+          const mobileNav = await findMobileNav(page);
 
-      // ============================================================
-      // CHECK 1: TOUCH TARGET SIZE
-      // Critical for mobile conversions - small targets = mis-taps
-      // ============================================================
+          if (!mobileNav) {
+            logger.warn("No mobile navigation found", { url: target.url });
+            return issues;
+          }
 
-      const touchTargetIssues = await checkTouchTargets(
-        page,
-        mobileNav,
-        target.url
-      );
-      issues.push(...touchTargetIssues);
+          logger.info("Found mobile navigation", {
+            pattern: mobileNav.pattern,
+            score: mobileNav.score,
+            reason: mobileNav.reason,
+          });
 
-      // ============================================================
-      // CHECK 2: HAMBURGER KEYBOARD ACCESSIBILITY
-      // Dramatic demo potential - shows complete access failure
-      // ============================================================
+          // ============================================================
+          // CHECK 1: TOUCH TARGET SIZE
+          // Critical for mobile conversions - small targets = mis-taps
+          // ============================================================
+          try {
+            await ensureMobileNavReady(
+              page,
+              mobileNav,
+              "touch-targets",
+              "open"
+            );
 
-      const hamburgerIssues = await checkHamburgerKeyboard(
-        page,
-        mobileNav,
-        target.url
-      );
-      issues.push(...hamburgerIssues);
+            const touchTargetIssues = await checkTouchTargets(
+              page,
+              mobileNav,
+              target.url
+            );
+            issues.push(...touchTargetIssues);
+          } catch (error) {
+            logger.warn("Touch target check failed", error);
+          }
 
-      // ============================================================
-      // CHECK 3: FOCUS TRAP
-      // Easy to demonstrate - keyboard users get lost behind overlay
-      // ============================================================
+          // ============================================================
+          // CHECK 2: HAMBURGER KEYBOARD ACCESSIBILITY
+          // Dramatic demo potential - shows complete access failure
+          // ============================================================
+          try {
+            await ensureMobileNavReady(
+              page,
+              mobileNav,
+              "hamburger-keyboard",
+              "closed"
+            );
 
-      const focusTrapIssues = await checkFocusTrap(page, mobileNav, target.url);
-      issues.push(...focusTrapIssues);
+            const hamburgerIssues = await checkHamburgerKeyboard(
+              page,
+              mobileNav,
+              target.url
+            );
+            issues.push(...hamburgerIssues);
+          } catch (error) {
+            logger.warn("Hamburger keyboard check failed", error);
+          }
 
-      // ============================================================
-      // CHECK 4: ESCAPE KEY HANDLER
-      // Simple fix, huge usability win
-      // ============================================================
+          // ============================================================
+          // CHECK 3: FOCUS TRAP
+          // Easy to demonstrate - keyboard users get lost behind overlay
+          // ============================================================
+          try {
+            await ensureMobileNavReady(page, mobileNav, "focus-trap", "open");
 
-      const escapeKeyIssues = await checkEscapeKey(page, mobileNav, target.url);
-      issues.push(...escapeKeyIssues);
+            const focusTrapIssues = await checkFocusTrap(
+              page,
+              mobileNav,
+              target.url
+            );
+            issues.push(...focusTrapIssues);
+          } catch (error) {
+            logger.warn("Focus trap check failed", error);
+          }
 
-      // ============================================================
-      // CHECK 5: COLOR CONTRAST
-      // Automated scan + screenshots = instant proof
-      // ============================================================
+          // ============================================================
+          // CHECK 4: ESCAPE KEY HANDLER
+          // Simple fix, huge usability win
+          // ============================================================
+          try {
+            await ensureMobileNavReady(page, mobileNav, "escape-key", "open");
 
-      const contrastIssues = await checkColorContrast(
-        page,
-        mobileNav,
-        target.url
-      );
-      issues.push(...contrastIssues);
+            const escapeKeyIssues = await checkEscapeKey(
+              page,
+              mobileNav,
+              target.url
+            );
+            issues.push(...escapeKeyIssues);
+          } catch (error) {
+            logger.warn("Escape key check failed", error);
+          }
 
-      logger.info(`Mobile menu check complete: ${issues.length} issues found`);
-      return issues;
-    } catch (error) {
-      logger.error("Mobile menu check failed", error);
-      return issues;
+          // ============================================================
+          // CHECK 5: COLOR CONTRAST
+          // Automated scan + screenshots = instant proof
+          // ============================================================
+          try {
+            await ensureMobileNavReady(page, mobileNav, "contrast", "open");
+
+            const contrastIssues = await checkColorContrast(
+              page,
+              mobileNav,
+              target.url
+            );
+            issues.push(...contrastIssues);
+          } catch (error) {
+            logger.warn("Color contrast check failed", error);
+          }
+
+          logger.info(
+            `Mobile menu check complete: ${issues.length} issues found`
+          );
+          return issues;
+        } catch (error) {
+          logger.error("Mobile menu check failed", error);
+          return issues;
+        }
+      }); // withCleanup handles cleanup automatically
+    } finally {
+      logger.info("Restoring desktop viewport after mobile menu checks...");
+      await page.setViewportSize(originalViewport);
+      await page.waitForTimeout(500);
     }
   },
 };

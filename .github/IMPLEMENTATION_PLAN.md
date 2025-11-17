@@ -39,7 +39,7 @@
 ### Polish & QA
 
 - ⏳ Step 12: VS Code task verification
-- ⏳ Step 13: Copilot instructions file
+- ✅ Step 13: Copilot instructions file (popup guard + viewport reset guidance added)
 - ⏳ Step 14: First run & QA
 - ⏳ Step 15: Optional enhancements
 
@@ -256,6 +256,8 @@ Next steps will add real accessibility checks (axe-core, skip-link, mega-menu) t
 
 **Prompt to Copilot:**
 “Implement `src/core/templates` and `src/core/emit` to generate a pitch pack: a summary, a short outreach email, a JSON score file, and per-issue folders with finding, prompt, optional screenshot and raw data. Use kebab-case for folder names.”
+
+**Status update:** Emitter now clears destination folders before writing to prevent stale/duplicated issues in regenerated pitch packs.
 
 ---
 
@@ -645,6 +647,8 @@ export async function checkFooterAccessibility(
 
 **Prompt to Copilot:**
 “Create `.github/copilot-instructions.md` summarizing this project’s purpose (sales pitch pack), required outputs, minimal checks, WCAG 2.1 AA baseline, and how Copilot should generate fix prompts per issue to be used by a future fixer tool.”
+
+**Status:** ✅ File now also covers popup guard usage, mobile viewport reset expectations, and the emitter cleanup workflow so contributors follow the latest guardrails.
 
 ---
 

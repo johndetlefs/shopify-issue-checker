@@ -83,12 +83,15 @@ The project uses **TypeScript** and **Playwright**. Core structure:
 - `src/core/` — utilities:
   - `crawl.ts` — Target page discovery
   - `score.ts` — Issue prioritization
-  - `emit.ts` — Pitch pack generation
+  - `emit.ts` — Pitch pack generation (clears destination folders before writing)
   - `templates.ts` — Markdown/JSON templates
   - `logger.ts` — Error handling
   - `capture.ts` — Screenshot utility
   - `find-navigation.ts` — Smart pattern-based navigation finder
   - `find-footer.ts` — Smart pattern-based footer finder
+  - `find-mobile-nav.ts` — Mobile nav discovery + helpers (open/close/isOpen)
+  - `popup-guard.ts` — Shared popup guard + dismissal workflow
+  - `check-utils.ts` — `withCleanup` helper for automatic teardown
 - `src/runner.ts` — Orchestrates crawl and checks
 - `src/cli.ts` — Entry point (Usage: `npm run audit -- "Client Name" https://domain`)
 - `utilities/` — Development tools:
@@ -135,6 +138,85 @@ When implementing detection for new UI components (e.g., mobile menus, accordion
 - When generating prompts for fixes, **assume** the later "fixer" tool will pull the theme and apply patches—so provide **clear, minimal Liquid/TS snippets** and reference WCAG criteria in `prompt.md`.
 - File/dir names: **kebab-case**.
 - Commit messages (when asked): `chore(audit): {change}`, `feat(check): {check-name}`, `fix(a11y): {issue-title} [wcag: X.Y.Z]`.
+
+### CRITICAL: Check cleanup and popup handling
+
+**Every check MUST clean up after itself:**
+
+✅ **DO THIS:**
+
+```typescript
+import { withCleanup } from "../core/check-utils";
+
+export const myCheck: Check = {
+  name: "my-check",
+  async run(context: CheckContext): Promise<Issue[]> {
+    return withCleanup(context.page, async () => {
+      const issues: Issue[] = [];
+
+      // Your check code here
+      // Open menus, modals, etc.
+
+      // withCleanup handles cleanup automatically
+      return issues;
+    });
+  },
+};
+```
+
+**Why this matters:**
+
+- Prevents "leftover" UI from interfering with subsequent checks
+- Ensures page is in clean state for next check
+- Works even if check throws error (finally block)
+- Centralizes cleanup logic in one place
+
+**Popup dismissal strategy:**
+
+Popups (modals, overlays, email signups) can appear at ANY time:
+
+- On page load (delayed by 2-5 seconds)
+- After user interaction (scrolling, clicking)
+- During viewport changes (desktop → mobile)
+
+**Solution:** Use the shared popup guard helper so ESC-driven dismissal reopens anything you rely on (mobile nav, drawers, etc.).
+
+```typescript
+import { dismissPopupsWithGuards, GuardedUiTarget } from "../core/popup-guard";
+import { isMobileNavOpen, openMobileNav } from "../core/find-mobile-nav";
+
+const mobileNavGuard: GuardedUiTarget = {
+  name: "mobile navigation",
+  isOpen: () => isMobileNavOpen(mobileNav),
+  open: () => openMobileNav(mobileNav),
+  waitAfterOpenMs: 600,
+};
+
+await dismissPopupsWithGuards(page, [mobileNavGuard], {
+  label: "mobile-menu-check",
+});
+```
+
+Guards can be composed for any UI you open (mega menus, drawers, tooltips). Always keep them close to the check so future contributors see which surfaces must remain open.
+
+**Why popup state verification matters:**
+
+- `dismissPopups()` uses ESC key as primary strategy
+- ESC can close ANY modal/drawer, including your test target
+- Mobile menus, drawers, dialogs all respond to ESC
+- Must verify state after dismissal, reopen if needed
+
+**When to dismiss popups and verify state:**
+
+- ✅ Before finding mobile nav/menus
+- ✅ After setting mobile viewport (triggers new popups)
+- ✅ Between each mobile menu check (popups can reappear)
+- ✅ Before keyboard interaction tests
+- ✅ After any operation that uses ESC key
+
+### Mobile viewport resets
+
+Mobile-only checks must restore the desktop viewport (or whatever size was provided) after they run. Capture the existing viewport via `const original = page.viewportSize();`, switch to the desired mobile breakpoint, and always call `page.setViewportSize(original!)` inside a `finally` block/`withCleanup` to avoid leaving later checks in a cramped layout. This also pairs nicely with popup guards—set viewport → dismiss popups with guards → run assertions → restore viewport.
 
 ### CRITICAL: Always use finder utilities for UI component detection
 
@@ -205,8 +287,8 @@ You are fixing: Missing or non-functional “Skip to content” (WCAG 2.4.1).
 Target page(s): /, /collections/all
 
 Requirements:
-1) Insert <a class="sr-only focusable" href="#main">Skip to main content</a> as first focusable element in <body>.
-2) Ensure <main id="main" tabindex="-1"> and move focus there on activation.
+- Insert a visually hidden yet focusable Skip to main content link whose href points at the main region and appears first inside the body.
+- Ensure the main region has a matching id and receives focus when the skip link is triggered (for example by adding tabindex -1 before focusing).
 3) Provide Liquid + CSS before/after snippets (Shopify theme).
 4) Retain keyboard outline via :focus-visible.
 ```

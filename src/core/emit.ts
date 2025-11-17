@@ -4,7 +4,7 @@
  * Writes the pitch pack files to disk with all audit findings and recommendations.
  */
 
-import { writeFileSync, mkdirSync } from "fs";
+import { writeFileSync, mkdirSync, rmSync, existsSync } from "fs";
 import { join } from "path";
 import { Issue } from "../types";
 import { logger } from "./logger";
@@ -37,6 +37,9 @@ export function emitPitchPack(
 
     // Create individual issue folders first and update screenshot/video filenames
     const issuesDir = join(packPath, "issues");
+    if (existsSync(issuesDir)) {
+      rmSync(issuesDir, { recursive: true, force: true });
+    }
     mkdirSync(issuesDir, { recursive: true });
 
     issues.forEach((issue, index) => {
