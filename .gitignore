@@ -33,6 +33,9 @@ playwright/.cache/
 *.mp4
 *.webm
 
+# Fixture audit outputs
+artifacts/
+
 # Logs
 *.log
 npm-debug.log*

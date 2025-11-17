@@ -58,6 +58,25 @@ See `docs/ENV_CHECKLIST.md` for a quick verification list.
 
 ---
 
+## Fixture accuracy audit
+
+Run the offline harness to confirm our navigation, footer, and mobile navigation detectors (plus automated axe-core snapshots) stay honest before shipping code changes:
+
+```bash
+npm run audit:fixtures
+```
+
+- Optional: scope to one or more fixtures via `npm run audit:fixtures -- --slug harris koh`.
+- Results land in `artifacts/fixture-audit/<timestamp>/` with:
+  - `results.json` + `summary.md`
+  - Failure screenshots for any regressions
+  - `axe/<slug>/<viewport>.json` WCAG 2.1 A/AA snapshots for every fixture
+- Ground-truth expectations (navigation, footer, mobile navigation) live in `fixtures/benchmark-matrix.json`; see `docs/FIXTURE-AUDIT.md` for schema and scaling guidelines.
+
+Add this task to CI so PRs can’t regress detector accuracy silently.
+
+---
+
 ## How to use the pitch pack
 
 - Pull **2–3 top issues** and 1–2 **screenshots** into your outreach.

@@ -1,0 +1,154 @@
+[
+  {
+    "name": "Harris Farm",
+    "slug": "harris",
+    "baseUrl": "https://www.harrisfarm.com.au/",
+    "desktopHtml": "pattern-analysis/harris/desktop.html",
+    "mobileHtml": "pattern-analysis/harris/mobile.html",
+    "expectations": {
+      "navigation": { "shouldFind": true, "minLinks": 6, "maxLinks": 15 },
+      "footer": { "shouldFind": true },
+      "mobile-navigation": { "shouldFind": true }
+    }
+  },
+  {
+    "name": "Koala",
+    "slug": "koala",
+    "baseUrl": "https://au.koala.com/",
+    "desktopHtml": "pattern-analysis/koala/desktop.html",
+    "mobileHtml": "pattern-analysis/koala/mobile.html",
+    "expectations": {
+      "navigation": { "shouldFind": true, "minLinks": 4, "maxLinks": 60 },
+      "footer": { "shouldFind": true },
+      "mobile-navigation": { "shouldFind": true }
+    }
+  },
+  {
+    "name": "Strand Bags",
+    "slug": "strand",
+    "baseUrl": "https://www.strandbags.com.au/",
+    "desktopHtml": "pattern-analysis/strand/desktop.html",
+    "mobileHtml": "pattern-analysis/strand/mobile.html",
+    "expectations": {
+      "navigation": { "shouldFind": true, "minLinks": 6, "maxLinks": 20 },
+      "footer": { "shouldFind": true },
+      "mobile-navigation": { "shouldFind": true }
+    }
+  },
+  {
+    "name": "Universal Store",
+    "slug": "universal",
+    "baseUrl": "https://www.universalstore.com/",
+    "desktopHtml": "pattern-analysis/universal/desktop.html",
+    "mobileHtml": "pattern-analysis/universal/mobile.html",
+    "expectations": {
+      "navigation": {
+        "shouldFind": true,
+        "minLinks": 6,
+        "maxLinks": 400,
+        "notes": "Large mega menu with many hidden links"
+      },
+      "footer": { "shouldFind": true },
+      "mobile-navigation": {
+        "shouldFind": true,
+        "notes": "Large menu, expect drawer detection"
+      }
+    }
+  },
+  {
+    "name": "Camilla",
+    "slug": "camilla",
+    "baseUrl": "https://camilla.com/",
+    "desktopHtml": "pattern-analysis/camilla/desktop.html",
+    "mobileHtml": "pattern-analysis/camilla/mobile.html",
+    "expectations": {
+      "navigation": { "shouldFind": true, "minLinks": 8, "maxLinks": 20 },
+      "footer": { "shouldFind": true },
+      "mobile-navigation": { "shouldFind": true }
+    }
+  },
+  {
+    "name": "Patagonia AU",
+    "slug": "patagonia",
+    "baseUrl": "https://www.patagonia.com.au/",
+    "desktopHtml": "pattern-analysis/patagonia/desktop.html",
+    "mobileHtml": "pattern-analysis/patagonia/mobile.html",
+    "expectations": {
+      "navigation": { "shouldFind": true, "minLinks": 5, "maxLinks": 20 },
+      "footer": { "shouldFind": true },
+      "mobile-navigation": { "shouldFind": true }
+    }
+  },
+  {
+    "name": "Bassike",
+    "slug": "bassike",
+    "baseUrl": "https://www.bassike.com/",
+    "desktopHtml": "pattern-analysis/bassike/desktop.html",
+    "mobileHtml": "pattern-analysis/bassike/mobile.html",
+    "expectations": {
+      "navigation": { "shouldFind": true, "minLinks": 5, "maxLinks": 80 },
+      "footer": { "shouldFind": true },
+      "mobile-navigation": { "shouldFind": true }
+    }
+  },
+  {
+    "name": "Kookai",
+    "slug": "kookai",
+    "baseUrl": "https://www.kookai.com.au/",
+    "desktopHtml": "pattern-analysis/kookai/desktop.html",
+    "mobileHtml": "pattern-analysis/kookai/mobile.html",
+    "expectations": {
+      "navigation": { "shouldFind": true, "minLinks": 5, "maxLinks": 20 },
+      "footer": { "shouldFind": true },
+      "mobile-navigation": { "shouldFind": true }
+    }
+  },
+  {
+    "name": "Koh",
+    "slug": "koh",
+    "baseUrl": "https://koh.com/",
+    "desktopHtml": "pattern-analysis/koh/desktop.html",
+    "mobileHtml": "pattern-analysis/koh/mobile.html",
+    "expectations": {
+      "navigation": { "shouldFind": true, "minLinks": 3, "maxLinks": 15 },
+      "footer": { "shouldFind": true },
+      "mobile-navigation": { "shouldFind": true }
+    }
+  },
+  {
+    "name": "Gym Direct",
+    "slug": "gymdirect",
+    "baseUrl": "https://www.gymdirect.com.au/",
+    "desktopHtml": "pattern-analysis/gymdirect/desktop.html",
+    "mobileHtml": "pattern-analysis/gymdirect/mobile.html",
+    "expectations": {
+      "navigation": { "shouldFind": true, "minLinks": 5, "maxLinks": 25 },
+      "footer": { "shouldFind": true },
+      "mobile-navigation": { "shouldFind": true }
+    }
+  },
+  {
+    "name": "Johndetlefs Sandbox",
+    "slug": "johndetlefs",
+    "baseUrl": "https://johndetlefs.myshopify.com/",
+    "desktopHtml": "pattern-analysis/johndetlefs/desktop.html",
+    "mobileHtml": "pattern-analysis/johndetlefs/mobile.html",
+    "expectations": {
+      "navigation": { "shouldFind": true, "minLinks": 4, "maxLinks": 15 },
+      "footer": { "shouldFind": true },
+      "mobile-navigation": { "shouldFind": true }
+    }
+  },
+  {
+    "name": "Synthetic — No Nav",
+    "slug": "synthetic-no-nav",
+    "baseUrl": "https://localhost/synthetic/no-nav",
+    "desktopHtml": "fixtures/synthetic/no-nav/desktop.html",
+    "mobileHtml": "fixtures/synthetic/no-nav/mobile.html",
+    "expectations": {
+      "navigation": { "shouldFind": false },
+      "footer": { "shouldFind": true },
+      "mobile-navigation": { "shouldFind": false }
+    }
+  }
+]

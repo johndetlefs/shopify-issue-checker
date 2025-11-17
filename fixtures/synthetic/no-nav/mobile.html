@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Synthetic Fixture — No Navigation (Mobile)</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 0;
+        padding: 0;
+      }
+      header,
+      main,
+      footer {
+        padding: 24px;
+      }
+      header {
+        background: #f5f5f5;
+        text-align: center;
+      }
+      footer {
+        background: #111;
+        color: #fff;
+      }
+      footer a {
+        color: #7dd3fc;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <p>Mobile Logo</p>
+    </header>
+    <main id="main">
+      <h1>Synthetic Mobile Page</h1>
+      <p>
+        Like the desktop capture, this file skips any navigation markup so the
+        detector should not return a hit while the footer remains detectable.
+      </p>
+    </main>
+    <footer>
+      <p>Footer quick links</p>
+      <a href="/policies/privacy">Privacy</a>
+    </footer>
+  </body>
+</html>
