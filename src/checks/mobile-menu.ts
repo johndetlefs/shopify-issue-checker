@@ -1271,24 +1271,31 @@ async function checkColorContrast(
 
       try {
         const firstIssue = contrastData.lowContrast[0];
-        const annotationResult = await annotateElement(page, {
-          containerLocator: mobileNav.drawer,
-          selector: "a, button, span, p, h1, h2, h3, h4, h5, h6",
-          labelText: `⚠️ ${firstIssue.ratio}:1 (needs ${firstIssue.required}:1)`,
-          annotationType: "contrast",
-          filter: (el: Element) => {
-            const text = (el as HTMLElement).textContent?.trim();
-            return text === firstIssue.text.substring(0, 50);
-          },
-          waitAfterAnnotation: 1500,
-        });
 
-        if (annotationResult) {
-          rawData.screenshotBuffer = annotationResult.screenshotBuffer;
-          logger.info(
-            "Color contrast annotation captured",
-            annotationResult.elementInfo
-          );
+        if (firstIssue) {
+          const matchText = (firstIssue.text || "").trim().substring(0, 50);
+
+          const annotationResult = await annotateElement(page, {
+            containerLocator: mobileNav.drawer,
+            selector: "a, button, span, p, h1, h2, h3, h4, h5, h6",
+            labelText: `⚠️ ${firstIssue.ratio}:1 (needs ${firstIssue.required}:1)`,
+            annotationType: "contrast",
+            filter: (el: Element, context?: { matchText: string }) => {
+              const text =
+                (el as HTMLElement).textContent?.trim().substring(0, 50) || "";
+              return context?.matchText ? text === context.matchText : false;
+            },
+            filterContext: { matchText },
+            waitAfterAnnotation: 1500,
+          });
+
+          if (annotationResult) {
+            rawData.screenshotBuffer = annotationResult.screenshotBuffer;
+            logger.info(
+              "Color contrast annotation captured",
+              annotationResult.elementInfo
+            );
+          }
         }
       } catch (err) {
         logger.warn("Failed to capture contrast screenshot", {

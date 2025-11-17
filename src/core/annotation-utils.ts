@@ -35,7 +35,14 @@ export interface AnnotateElementOptions {
    * Receives an element and should return true to annotate it.
    * If not provided, the first matching visible element is annotated.
    */
-  filter?: (element: Element) => boolean;
+  filter?: (element: Element, context?: any) => boolean;
+
+  /**
+   * Optional serializable context passed to the filter function inside the page.
+   * Useful for matching dynamic text without relying on closures (which break
+   * when the function is stringified for evaluation).
+   */
+  filterContext?: any;
 
   /**
    * Optional custom annotation configuration to override defaults
@@ -167,6 +174,7 @@ export async function annotateElement(
     labelText,
     annotationType,
     filter,
+    filterContext,
     customConfig,
     waitAfterAnnotation = 1500,
   } = options;
@@ -195,6 +203,7 @@ export async function annotateElement(
         annotationType,
         config,
         filterFn,
+        filterContext,
       } = params;
 
       // Find all matching elements
@@ -203,9 +212,23 @@ export async function annotateElement(
       // Apply custom filter if provided
       let targetElement: Element | undefined;
       if (filterFn) {
-        // Deserialize and execute the filter function
-        const filterFunc = new Function("return " + filterFn)();
-        targetElement = elements.find((el) => filterFunc(el));
+        // Deserialize and execute the filter function with optional context
+        const filterFunc = new Function(
+          "element",
+          "context",
+          `return (${filterFn})(element, context);`
+        );
+        targetElement = elements.find((el) => {
+          try {
+            return filterFunc(el, filterContext);
+          } catch (err) {
+            console.warn(
+              "Annotation filter function threw an error, skipping element",
+              err
+            );
+            return false;
+          }
+        });
       } else {
         // Default: find first visible element
         targetElement = elements.find((el) => {
@@ -364,6 +387,7 @@ export async function annotateElement(
       annotationType,
       config,
       filterFn: filter ? filter.toString() : undefined,
+      filterContext,
     }
   );
 

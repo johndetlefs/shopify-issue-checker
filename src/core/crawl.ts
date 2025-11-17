@@ -8,6 +8,7 @@
 import { Page } from "@playwright/test";
 import { PageTarget } from "../types";
 import { logger } from "./logger";
+import { navigateWithFallback } from "./navigation";
 
 export async function discoverTargets(
   page: Page,
@@ -15,6 +16,7 @@ export async function discoverTargets(
 ): Promise<PageTarget[]> {
   const targets: PageTarget[] = [];
   const seenUrls = new Set<string>();
+  let effectiveBaseUrl = baseUrl;
 
   // Helper to add target with deduplication
   const addTarget = (url: string, label: string) => {
@@ -29,8 +31,13 @@ export async function discoverTargets(
   try {
     // 1. Homepage
     logger.info("Navigating to homepage", { baseUrl });
-    await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 15000 });
-    addTarget(baseUrl, "Homepage");
+    const homepageNav = await navigateWithFallback(page, baseUrl, {
+      label: "Homepage",
+      timeout: 20000,
+    });
+
+    effectiveBaseUrl = homepageNav.finalUrl || baseUrl;
+    addTarget(effectiveBaseUrl, "Homepage");
 
     // 2. Discover product and collection links from homepage
     try {
@@ -82,18 +89,25 @@ export async function discoverTargets(
     ];
 
     for (const { path, label } of commonPages) {
-      const url = new URL(path, baseUrl).href;
+      const url = new URL(path, effectiveBaseUrl).href;
       // Quick check if page exists
       try {
-        const response = await page.goto(url, {
-          waitUntil: "domcontentloaded",
+        const result = await navigateWithFallback(page, url, {
+          label,
           timeout: 10000,
         });
-        if (response && response.ok()) {
-          addTarget(url, label);
+
+        const pageExists =
+          (result.response && result.response.ok()) || result.fallbackTriggered;
+
+        if (pageExists) {
+          addTarget(result.finalUrl || url, label);
         }
       } catch (error) {
-        logger.warn(`Page not found or failed to load: ${label}`, { url });
+        logger.warn(`Page not found or failed to load: ${label}`, {
+          url,
+          error,
+        });
       }
     }
   } catch (error) {

@@ -12,9 +12,52 @@ export enum LogLevel {
 }
 
 class Logger {
+  private serializeData(data: any): any {
+    if (!data) {
+      return undefined;
+    }
+
+    if (data instanceof Error) {
+      return {
+        name: data.name,
+        message: data.message,
+        stack: data.stack,
+      };
+    }
+
+    if (Array.isArray(data)) {
+      return data.map((item) => this.serializeData(item));
+    }
+
+    if (typeof data === "object") {
+      const serialized: Record<string, any> = {};
+      for (const [key, value] of Object.entries(data)) {
+        serialized[key] = this.serializeData(value);
+      }
+      return serialized;
+    }
+
+    return data;
+  }
+
   private formatMessage(level: LogLevel, message: string, data?: any): string {
     const timestamp = new Date().toISOString();
-    const dataStr = data ? ` ${JSON.stringify(data)}` : "";
+    let dataStr = "";
+
+    if (data) {
+      try {
+        const normalized = this.serializeData(data);
+        if (normalized !== undefined) {
+          dataStr = ` ${JSON.stringify(normalized)}`;
+        }
+      } catch (err) {
+        dataStr = ` ${JSON.stringify({
+          serializationError:
+            err instanceof Error ? err.message : String(err ?? "error"),
+        })}`;
+      }
+    }
+
     return `[${timestamp}] ${level}: ${message}${dataStr}`;
   }
 

@@ -16,6 +16,7 @@ import { skipLinkCheck } from "./checks/skip-link";
 import { megaMenuCheck } from "./checks/mega-menu";
 import { mobileMenuCheck } from "./checks/mobile-menu";
 import { axeCoreCheck } from "./checks/axe-core";
+import { navigateWithFallback } from "./core/navigation";
 
 export async function runAudit(
   clientName: string,
@@ -51,26 +52,38 @@ export async function runAudit(
       logger.info(`Checking ${target.label}...`);
 
       try {
-        await page.goto(target.url, {
-          waitUntil: "domcontentloaded",
-          timeout: 15000,
+        const navigationResult = await navigateWithFallback(page, target.url, {
+          label: target.label,
+          timeout: 20000,
         });
+
+        if (navigationResult.finalUrl !== target.url) {
+          logger.info("Target URL redirected", {
+            from: target.url,
+            to: navigationResult.finalUrl,
+          });
+        }
+
+        const effectiveTarget =
+          navigationResult.finalUrl !== target.url
+            ? { ...target, url: navigationResult.finalUrl }
+            : target;
 
         // Run skip-link check
         const skipLinkIssues = await skipLinkCheck.run({
           page,
           baseUrl,
-          target,
+          target: effectiveTarget,
         });
 
         allIssues.push(...skipLinkIssues);
 
         // Run mega-menu check (only on homepage for efficiency)
-        if (target.label === "Homepage") {
+        if (effectiveTarget.label === "Homepage") {
           const megaMenuIssues = await megaMenuCheck.run({
             page,
             baseUrl,
-            target,
+            target: effectiveTarget,
           });
 
           allIssues.push(...megaMenuIssues);
@@ -79,7 +92,7 @@ export async function runAudit(
           const mobileMenuIssues = await mobileMenuCheck.run({
             page,
             baseUrl,
-            target,
+            target: effectiveTarget,
           });
 
           allIssues.push(...mobileMenuIssues);
@@ -89,7 +102,7 @@ export async function runAudit(
         const axeIssues = await axeCoreCheck.run({
           page,
           baseUrl,
-          target,
+          target: effectiveTarget,
         });
 
         allIssues.push(...axeIssues);
