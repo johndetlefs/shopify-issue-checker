@@ -74,7 +74,7 @@ const sites: Record<string, string> = {
   bassike: "https://www.bassike.com/",
   kookai: "https://www.kookai.com.au/",
   koh: "https://koh.com/",
-  themandagies: "https://themandagies.com.au/",
+  gymdirect: "https://gymdirect.com.au/",
 };
 
 async function captureHTML(url: string, name: string, component: string) {

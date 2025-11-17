@@ -7,6 +7,16 @@
 
 import { Issue } from "../types";
 
+const DEFAULT_CALENDLY_URL =
+  "https://calendly.com/johndetlefs/introduction-tour";
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 /**
  * Escape HTML characters in markdown titles to prevent rendering issues
  */
@@ -15,13 +25,27 @@ function escapeMarkdownTitle(title: string): string {
   return title.replace(/<([^>]+)>/g, "`<$1>`");
 }
 
-export function generateSummary(clientName: string, issues: Issue[]): string {
+interface SummaryOptions {
+  reportUrl?: string;
+  calendlyUrl?: string;
+}
+
+export function generateSummary(
+  clientName: string,
+  issues: Issue[],
+  options: SummaryOptions = {}
+): string {
   const criticalCount = issues.filter((i) => i.severity === "critical").length;
   const seriousCount = issues.filter((i) => i.severity === "serious").length;
   const moderateCount = issues.filter((i) => i.severity === "moderate").length;
   const minorCount = issues.filter((i) => i.severity === "minor").length;
 
   const topIssues = issues.slice(0, 5);
+
+  const reportUrl =
+    options.reportUrl ??
+    `https://johndetlefs.com/reports/${slugify(clientName)}`;
+  const calendlyUrl = options.calendlyUrl ?? DEFAULT_CALENDLY_URL;
 
   // Helper function to format path(s)
   const formatPaths = (path: string | string[]): string => {
@@ -39,11 +63,19 @@ export function generateSummary(clientName: string, issues: Issue[]): string {
 
 **Generated:** ${new Date().toLocaleDateString()}
 
+---
+
 ## Executive Summary
 
 We identified **${
     issues.length
-  } accessibility and usability issues** across your Shopify storefront that could be impacting conversions, customer trust, and WCAG 2.1 AA compliance.
+  } accessibility and usability issues** across your Shopify storefront that could be impacting:
+
+- How easily customers navigate your menus and collections  
+- Trust and experience for keyboard and screen-reader users  
+- Your alignment with **WCAG 2.1 AA** accessibility standards  
+
+Most of these issues are **low to medium effort** to address for a developer familiar with Shopify themes and accessibility best practices.
 
 ### Issue Breakdown
 
@@ -51,6 +83,51 @@ We identified **${
 - 🟠 **Serious:** ${seriousCount}
 - 🟡 **Moderate:** ${moderateCount}
 - 🟢 **Minor:** ${minorCount}
+
+---
+
+## How to Use This Report
+
+This summary gives you a clear, non-technical overview of:
+
+- Where accessibility and navigation issues show up on your storefront  
+- How they can affect customers and revenue  
+- Which areas are likely to deliver the quickest wins if you improve them  
+
+Share it with your development team or partner agency as a starting point. If you’d like, we can also walk you through the findings in a short call and suggest a practical rollout plan.
+
+${
+  reportUrl
+    ? `You can view/share this report at: **${reportUrl}**
+
+`
+    : ""
+}---
+
+## What This Means for ${clientName}
+
+From a customer’s perspective, the current issues can result in:
+
+- Difficulty navigating large menus or reaching main content quickly without a mouse  
+- Confusing or invisible focus states when moving through navigation links  
+- Incomplete information for assistive technologies (screen readers), especially in menus and structural elements  
+
+From a business and compliance perspective, this means:
+
+- **Conversion risk** — some customers may abandon browsing or key flows because they can’t easily move through the site using their preferred method.  
+- **Brand risk** — accessibility problems can undermine the premium feel of the brand for users who encounter them.  
+- **Compliance risk** — several issues map directly to WCAG 2.1 AA criteria that are commonly referenced in accessibility complaints.  
+
+---
+
+## Key Themes
+
+1. **Navigation & Menus (Desktop & Mobile)**  
+   Skip link problems, missing focus indicators, incomplete ARIA attributes on expandable items, and too many tab stops/focus issues when closing menus.  
+2. **Screen-Reader & Keyboard Experience**  
+   ARIA roles and attributes not used as expected, visually hidden elements that remain focusable, and controls without discernible text.  
+3. **Content Structure & Images**  
+   List items (\`<li>\`) outside of proper lists and images without alternative text.  
 
 ---
 
@@ -71,20 +148,22 @@ ${topIssues
 
 - **Severity:** ${issue.severity}
 - **Impact:** ${issue.impact}
-- **Effort to Fix:** ${issue.effort}
+- **Effort to Address:** ${issue.effort}
 - **WCAG Criteria:** ${issue.wcagCriteria?.join(", ") || "N/A"}
 - **Found on:** ${formatPaths(issue.path)}
 
-**Description:** ${issue.description}
+**What’s happening**  
+${issue.description}
 
 ${
   screenshotPath
     ? `**Screenshot:**\n\n![${issue.title}](${screenshotPath})\n\n*Annotations added to highlight the issue*\n`
     : ""
-}**Solution:** ${issue.solution}
+}**Recommended direction**  
+${issue.solution}
 `;
   })
-  .join("\n---\n")}}
+  .join("\n---\n")}
 
 ---
 
@@ -101,50 +180,81 @@ ${issues
 
 ---
 
+## Why a Short Review Call Helps
+
+You can absolutely use this summary as a brief for your own developers or partner agency. Where we usually add value is in:
+
+- **Prioritisation** — picking the 5–7 issues most likely to move the needle on navigation, inclusivity, and compliance in the next 30–60 days.  
+- **Risk reduction** — avoiding fixes that solve one issue but introduce regressions elsewhere in the theme.  
+- **Validation** — re-checking key flows against WCAG 2.1 AA and real user behaviour once changes are deployed.  
+
+---
+
 ## Next Steps
 
-1. Review individual issue details in the \`/issues\` folder
-2. Prioritize fixes based on business impact
-3. Use the provided Copilot prompts for AI-assisted implementation
-4. Re-audit after fixes to track progress
+1. **Share this summary internally** as a starting point for theme improvements.  
+2. **Decide on a first implementation phase (30–60 days)**, focusing on navigation, skip-link, and mobile menu issues.  
+3. **Optionally, have us guide the implementation** — we specialise in Shopify accessibility and navigation improvements and can help plan and validate changes.  
 
-**Need help implementing these fixes?** We specialize in Shopify accessibility improvements with quick turnaround times.
+<div class="mt-4 mb-3">
+  <a href="${calendlyUrl}" class="btn btn-primary btn-lg" target="_blank" rel="noopener">
+    👉 Book a 20-minute review call
+  </a>
+</div>
+
+We’ve run similar accessibility and navigation audits for other Shopify brands, and the first round of fixes typically leads to smoother navigation, fewer support issues, and measurable conversion lifts for affected users.
 `;
 }
 
-export function generateEmail(clientName: string, issues: Issue[]): string {
-  const topWins = issues.slice(0, 3);
+interface EmailOptions {
+  reportUrl?: string;
+}
 
-  return `Subject: Quick Accessibility Wins for ${clientName}
+export function generateEmail(
+  clientName: string,
+  issues: Issue[],
+  options: EmailOptions = {}
+): string {
+  const topWins = issues.slice(0, 3);
+  const fallbackReportUrl = `https://johndetlefs.com/reports/${slugify(
+    clientName
+  )}`;
+  const reportUrl = options.reportUrl ?? fallbackReportUrl;
+
+  return `Subject: ${clientName}: your accessibility & navigation report (${
+    issues.length
+  } issues found)
 
 Hi [Name],
 
-I ran a quick accessibility audit on your Shopify store and found **${
+I've put together a short accessibility & navigation report specifically for ${clientName}. It highlights **${
     issues.length
-  } opportunities** to improve conversions, customer trust, and compliance with web accessibility standards (WCAG 2.1 AA).
+  } issues** that are likely:
 
-Here are the top 3 quick wins:
+- Making it harder for some customers to move through your menus and collections  
+- Putting you at risk of WCAG 2.1 AA accessibility complaints  
+- Leaving some easy conversion wins on the table  
+
+A few examples:
 
 ${topWins
   .map(
     (issue, i) => `${i + 1}. **${escapeMarkdownTitle(issue.title)}**
    Impact: ${issue.impact} | Effort: ${issue.effort}
-   ${issue.solution}
+   ${issue.description}
 `
   )
   .join("\n")}
 
-I've prepared a full report with:
-- Screenshots of each issue
-- Step-by-step fix instructions
-- AI-ready prompts for implementation
+You can view your report here:
+👉 ${reportUrl}
 
-Would you be interested in reviewing the findings? I can walk you through the top priorities in a quick 15-minute call.
+Once you've had a chance to skim it, I'm happy to walk you or your dev team through the top priorities and a simple 30–60 day plan — details are at the bottom of the report.
 
-Best regards,
+Best,
 [Your Name]
 
-P.S. — These accessibility improvements typically increase conversions by 5-15% and help you reach a wider customer base.
+P.S. On similar Shopify stores, tightening up accessibility and navigation like this has led to smoother experiences for all users and measurable conversion lifts, especially on mobile and for keyboard/screen-reader users.
 `;
 }
 

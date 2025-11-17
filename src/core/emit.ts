@@ -29,6 +29,7 @@ export function emitPitchPack(
 ): string {
   const clientSlug = kebabCase(clientName);
   const packPath = join(process.cwd(), "clients", clientSlug, "pitch-pack");
+  const reportUrl = `https://johndetlefs.com/reports/${clientSlug}`;
 
   try {
     // Create directory structure
@@ -82,12 +83,20 @@ export function emitPitchPack(
 
     // NOW write summary.md (after all screenshots are processed and filenames updated)
     const summaryPath = join(packPath, "summary.md");
-    writeFileSync(summaryPath, generateSummary(clientName, issues), "utf-8");
+    writeFileSync(
+      summaryPath,
+      generateSummary(clientName, issues, { reportUrl }),
+      "utf-8"
+    );
     logger.info("Wrote summary.md");
 
     // Write email.md
     const emailPath = join(packPath, "email.md");
-    writeFileSync(emailPath, generateEmail(clientName, issues), "utf-8");
+    writeFileSync(
+      emailPath,
+      generateEmail(clientName, issues, { reportUrl }),
+      "utf-8"
+    );
     logger.info("Wrote email.md");
 
     // Write score.json
