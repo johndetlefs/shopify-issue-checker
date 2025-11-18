@@ -17,6 +17,7 @@ import { megaMenuCheck } from "./checks/mega-menu";
 import { mobileMenuCheck } from "./checks/mobile-menu";
 import { axeCoreCheck } from "./checks/axe-core";
 import { navigateWithFallback } from "./core/navigation";
+import { selectAccessibilityCheck } from "./checks/select-accessibility";
 
 export async function runAudit(
   clientName: string,
@@ -77,6 +78,14 @@ export async function runAudit(
         });
 
         allIssues.push(...skipLinkIssues);
+
+        const selectIssues = await selectAccessibilityCheck.run({
+          page,
+          baseUrl,
+          target: effectiveTarget,
+        });
+
+        allIssues.push(...selectIssues);
 
         // Run mega-menu check (only on homepage for efficiency)
         if (effectiveTarget.label === "Homepage") {
