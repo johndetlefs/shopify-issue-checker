@@ -71,9 +71,9 @@ We identified **${
     issues.length
   } accessibility and usability issues** across your Shopify storefront that could be impacting:
 
-- How easily customers navigate your menus and collections  
-- Trust and experience for keyboard and screen-reader users  
-- Your alignment with **WCAG 2.1 AA** accessibility standards  
+- How quickly customers can move from your homepage into key categories and products (especially on mobile)  
+- How reliably customers can recover from mistakes in navigation (menus, overlays, search, filters) without getting lost  
+- How your store experience stacks up against international expectations for inclusive, accessible ecommerce (including **WCAG 2.1 AA**)  
 
 Most of these issues are **low to medium effort** to address for a developer familiar with Shopify themes and accessibility best practices.
 
@@ -108,26 +108,40 @@ ${
 
 From a customer’s perspective, the current issues can result in:
 
-- Difficulty navigating large menus or reaching main content quickly without a mouse  
-- Confusing or invisible focus states when moving through navigation links  
-- Incomplete information for assistive technologies (screen readers), especially in menus and structural elements  
+- Difficulty navigating large menus or reaching main content quickly without a mouse or on smaller mobile screens  
+- Confusing or invisible focus states when moving through navigation links, which makes it harder to understand "where" you are on the site  
+- Incomplete information for assistive technologies (screen readers), especially in menus and structural elements, leading to a confusing or broken experience for some users  
 
 From a business and compliance perspective, this means:
 
-- **Conversion risk** — some customers may abandon browsing or key flows because they can’t easily move through the site using their preferred method.  
-- **Brand risk** — accessibility problems can undermine the premium feel of the brand for users who encounter them.  
-- **Compliance risk** — several issues map directly to WCAG 2.1 AA criteria that are commonly referenced in accessibility complaints.  
+- **Conversion risk** — some customers will quietly abandon browsing or key flows because navigation, menus, or forms are harder to use than they should be (particularly on mobile and for keyboard users).  
+- **Brand risk** — when basic interactions feel janky (lost focus, dead-end modals, unreadable text), it undermines the premium feel of the brand and customer trust.  
+- **Compliance & expansion risk** — several issues map directly to WCAG 2.1 AA criteria that are increasingly expected by larger partners and international markets (US/EU), and are frequently referenced in accessibility complaints.  
 
 ---
 
 ## Key Themes
 
 1. **Navigation & Menus (Desktop & Mobile)**  
-   Skip link problems, missing focus indicators, incomplete ARIA attributes on expandable items, and too many tab stops/focus issues when closing menus.  
+  Skip link problems, missing focus indicators, incomplete ARIA attributes on expandable items, and too many tab stops/focus issues when closing menus – all of which make it harder for customers to move smoothly from homepage into high-intent category and product pages.  
 2. **Screen-Reader & Keyboard Experience**  
    ARIA roles and attributes not used as expected, visually hidden elements that remain focusable, and controls without discernible text.  
 3. **Content Structure & Images**  
    List items (\`<li>\`) outside of proper lists and images without alternative text.  
+
+---
+
+## Where This Likely Hits Revenue
+
+- Navigation and mobile menu issues that slow customers down getting from homepage to deep categories and product detail pages.
+- Search, filter, and select controls without clear labels, which make it harder for shoppers to refine to the products they actually want.
+- Low-contrast or vague calls-to-action (especially on legal/info pages) that are easy to miss, even for sighted users in bright conditions.
+
+On similar Shopify stores, tightening these areas typically leads to:
+
+- More category and product views per session.
+- Fewer "dead ends" where customers get stuck in menus or overlays and give up.
+- Measurable lifts in add-to-cart and checkout starts for affected segments (mobile, keyboard, and assistive tech users).
 
 ---
 
@@ -231,9 +245,9 @@ I've put together a short accessibility & navigation report specifically for ${c
     issues.length
   } issues** that are likely:
 
-- Making it harder for some customers to move through your menus and collections  
-- Putting you at risk of WCAG 2.1 AA accessibility complaints  
-- Leaving some easy conversion wins on the table  
+- Making it harder for some customers to move quickly from your homepage into key categories and products (especially on mobile)  
+- Causing keyboard and assistive-technology users to get lost in menus, overlays, or forms instead of continuing to browse  
+- Leaving some easy conversion wins and future-proofing opportunities (WCAG 2.1 AA alignment) on the table  
 
 A few examples:
 
@@ -255,6 +269,121 @@ Best,
 [Your Name]
 
 P.S. On similar Shopify stores, tightening up accessibility and navigation like this has led to smoother experiences for all users and measurable conversion lifts, especially on mobile and for keyboard/screen-reader users.
+`;
+}
+
+export function generateEmailAuCto(
+  clientName: string,
+  issues: Issue[],
+  options: EmailOptions = {}
+): string {
+  const topWins = issues.slice(0, 3);
+  const fallbackReportUrl = `https://johndetlefs.com/reports/${slugify(
+    clientName
+  )}`;
+  const reportUrl = options.reportUrl ?? fallbackReportUrl;
+
+  return `Subject: ${clientName}: a few quick wins in your navigation & mobile UX
+
+Hi [Name],
+
+I ran a quick accessibility & navigation pass on ${clientName} and found **${
+    issues.length
+  } issues** where the experience could be smoother — particularly in the main navigation and mobile menu.
+
+Practically, these tend to show up as:
+
+- Shoppers needing more clicks/taps than necessary to reach key categories or products  
+- Keyboard and assistive-technology users getting lost in menus or overlays instead of continuing to browse  
+- Small, easy-to-miss UI details (focus states, labels, contrast) that make the store feel a bit "janky" for some visitors  
+
+A few examples from your report:
+
+${topWins
+  .map(
+    (issue, i) => `${i + 1}. **${escapeMarkdownTitle(issue.title)}**
+   Impact: ${issue.impact} | Effort: ${issue.effort}
+   ${issue.description}
+`
+  )
+  .join("\n")}
+
+You can skim the full findings here:
+👉 ${reportUrl}
+
+If it’s useful, I’m happy to jump on a short call with you and/or your dev partner to:
+
+- Prioritise the 5–7 items most likely to move the needle on navigation and mobile UX in the next 30–60 days  
+- sanity-check any proposed fixes against accessibility best practice so you don’t introduce regressions elsewhere in the theme  
+
+Best,
+[Your Name]
+
+P.S. Australian brands don’t see as many accessibility lawsuits as the US/EU, but the same issues that cause complaints overseas are usually the ones that quietly hurt mobile conversion and perceived quality here as well.
+`;
+}
+
+export function generateEmailCompliance(
+  clientName: string,
+  issues: Issue[],
+  options: EmailOptions = {}
+): string {
+  const topWins = issues.slice(0, 3);
+  const fallbackReportUrl = `https://johndetlefs.com/reports/${slugify(
+    clientName
+  )}`;
+  const reportUrl = options.reportUrl ?? fallbackReportUrl;
+
+  const criticalCount = issues.filter((i) => i.severity === "critical").length;
+  const seriousCount = issues.filter((i) => i.severity === "serious").length;
+
+  return `Subject: ${clientName}: WCAG 2.1 AA navigation & accessibility review (${
+    issues.length
+  } issues)
+
+Hi [Name],
+
+I’ve run an automated and manual accessibility pass on ${clientName} focusing on navigation, mobile menus, and common WCAG 2.1 AA problem areas.
+
+The report flagged **${issues.length} issues** so far:
+
+- Critical: ${criticalCount}  
+- Serious: ${seriousCount}  
+- Others: ${issues.length - criticalCount - seriousCount}  
+
+These cluster around:
+
+- Keyboard navigation and focus management in desktop & mobile menus  
+- ARIA usage, labels, and roles for screen reader support  
+- Colour contrast, alt text, and structural markup on key templates  
+
+For example:
+
+${topWins
+  .map(
+    (issue, i) => `${i + 1}. **${escapeMarkdownTitle(issue.title)}**
+   Severity: ${issue.severity} | Impact: ${issue.impact} | Effort: ${
+      issue.effort
+    }
+   WCAG: ${issue.wcagCriteria?.join(", ") || "N/A"}
+   ${issue.description}
+`
+  )
+  .join("\n")}
+
+Full report:
+👉 ${reportUrl}
+
+If you’re working towards tighter WCAG 2.1 AA alignment for internal policy, public sector procurement, or US/EU exposure, I can help your team:
+
+- Turn this into a concrete remediation backlog, grouped by effort and risk  
+- Prioritise issues that affect core user journeys (home → category → PDP → cart/checkout)  
+- Re-run targeted checks after changes to evidence improvements for stakeholders  
+
+Best,
+[Your Name]
+
+P.S. The same changes that reduce WCAG risk typically also improve navigation speed, reduce support queries, and lift conversion for keyboard, screen reader, and mobile users.
 `;
 }
 
