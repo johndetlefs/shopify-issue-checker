@@ -143,6 +143,8 @@ export async function dismissPopups(page: Page): Promise<void> {
       // Continue to next selector
     }
   }
+
+  await ensureCountrySelectorNotBlocking(page);
 }
 
 /**
@@ -864,4 +866,208 @@ async function findClassBasedPattern(
   }
 
   return null;
+}
+
+const COUNTRY_SELECTOR_ROOT_SELECTORS: string[] = [
+  "#shopify-section-country-selector",
+  "#shopify-section-country-selector-0",
+  "#shopify-section-country-selector-1",
+  '[id*="country-selector"][class*="shopify-section"]',
+  '[data-section-type="country-selector"]',
+  "country-detector",
+  "market-preferences",
+  "[data-market-selector]",
+  "[data-market-modal]",
+];
+
+const COUNTRY_SELECTOR_CLOSE_SELECTORS: string[] = [
+  'button[aria-label*="close" i]',
+  'button[data-action="close"]',
+  "button[data-country-selector-close]",
+  "button[data-market-selector-close]",
+  "button[data-drawer-close]",
+  ".market-selector__close",
+  ".country-selector__close",
+  ".drawer-button__close",
+];
+
+const COUNTRY_SELECTOR_BLOCKER_STYLE_ID = "a11y-country-selector-blocker";
+
+async function ensureCountrySelectorNotBlocking(page: Page): Promise<void> {
+  const maxAttempts = 3;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    // Allow async overlays to mount before we check state
+    await page.waitForTimeout(150);
+
+    const blocking = await isCountrySelectorBlocking(page);
+    if (!blocking) {
+      if (attempt > 0) {
+        console.log(
+          `  → Country selector overlay cleared after ${attempt + 1} attempt${
+            attempt === 0 ? "" : "s"
+          }`
+        );
+      }
+      return;
+    }
+
+    console.log(
+      `  → Shopify country selector intercepting clicks (attempt ${
+        attempt + 1
+      }/${maxAttempts})`
+    );
+
+    const dismissedWithControl = await closeCountrySelectorViaControls(page);
+    if (dismissedWithControl) {
+      await page.waitForTimeout(350);
+      continue;
+    }
+
+    const hiddenCount = await forceHideCountrySelector(page);
+    if (hiddenCount > 0) {
+      console.log(
+        `  → Country selector overlay suppressed for audit session (${hiddenCount} node${
+          hiddenCount === 1 ? "" : "s"
+        })`
+      );
+      continue;
+    }
+
+    const injected = await injectCountrySelectorBlockerStyle(page);
+    if (injected) {
+      console.log(
+        `  → Injected temporary stylesheet to keep country selector hidden`
+      );
+      continue;
+    }
+  }
+
+  if (await isCountrySelectorBlocking(page)) {
+    console.log(
+      `  ⚠️  Country selector overlay still intercepting clicks after mitigation attempts`
+    );
+  }
+}
+
+async function closeCountrySelectorViaControls(page: Page): Promise<boolean> {
+  const rootLocator = page.locator(COUNTRY_SELECTOR_ROOT_SELECTORS.join(","));
+  if ((await rootLocator.count()) === 0) {
+    return false;
+  }
+
+  for (const closeSelector of COUNTRY_SELECTOR_CLOSE_SELECTORS) {
+    const control = rootLocator.locator(closeSelector).first();
+    if ((await control.count()) === 0) {
+      continue;
+    }
+
+    const isVisible = await control.isVisible().catch(() => false);
+    if (!isVisible) {
+      continue;
+    }
+
+    try {
+      await control.click({ timeout: 1000 });
+      return true;
+    } catch {
+      continue;
+    }
+  }
+
+  // Fall back to ESC and overlay click attempts inside the same section
+  try {
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(200);
+    if (!(await isCountrySelectorBlocking(page))) {
+      return true;
+    }
+  } catch {}
+
+  try {
+    await rootLocator
+      .first()
+      .click({ position: { x: 5, y: 5 }, timeout: 1000 });
+    await page.waitForTimeout(200);
+    if (!(await isCountrySelectorBlocking(page))) {
+      return true;
+    }
+  } catch {}
+
+  return false;
+}
+
+async function isCountrySelectorBlocking(page: Page): Promise<boolean> {
+  return page
+    .evaluate((selectors) => {
+      const isBlocking = (el: Element): boolean => {
+        const element = el as HTMLElement;
+        if (!element) return false;
+        const rect = element.getBoundingClientRect();
+        if (rect.width <= 5 && rect.height <= 5) return false;
+        const style = window.getComputedStyle(element);
+        if (style.display === "none" || style.visibility === "hidden") {
+          return false;
+        }
+        const opacity = parseFloat(style.opacity || "1");
+        if (opacity === 0) {
+          return false;
+        }
+        if (style.pointerEvents === "none") {
+          return false;
+        }
+        return rect.bottom > 0 && rect.top < window.innerHeight;
+      };
+
+      return selectors.some((selector) => {
+        const nodes = document.querySelectorAll(selector);
+        return Array.from(nodes).some(isBlocking);
+      });
+    }, COUNTRY_SELECTOR_ROOT_SELECTORS)
+    .catch(() => false);
+}
+
+async function forceHideCountrySelector(page: Page): Promise<number> {
+  return page
+    .evaluate((selectors) => {
+      let hidden = 0;
+      for (const selector of selectors) {
+        const nodes = document.querySelectorAll(selector);
+        nodes.forEach((node) => {
+          const element = node as HTMLElement;
+          element.setAttribute("aria-hidden", "true");
+          element.style.setProperty("display", "none", "important");
+          element.style.setProperty("pointer-events", "none", "important");
+          element.style.setProperty("opacity", "0", "important");
+          hidden += 1;
+        });
+      }
+      return hidden;
+    }, COUNTRY_SELECTOR_ROOT_SELECTORS)
+    .catch(() => 0);
+}
+
+async function injectCountrySelectorBlockerStyle(page: Page): Promise<boolean> {
+  return page
+    .evaluate(
+      ({ selectors, styleId }) => {
+        if (document.getElementById(styleId)) {
+          return false;
+        }
+
+        const style = document.createElement("style");
+        style.id = styleId;
+        style.textContent = `${selectors.join(
+          ","
+        )} { display: none !important; pointer-events: none !important; opacity: 0 !important; }`;
+
+        document.head.appendChild(style);
+        return true;
+      },
+      {
+        selectors: COUNTRY_SELECTOR_ROOT_SELECTORS,
+        styleId: COUNTRY_SELECTOR_BLOCKER_STYLE_ID,
+      }
+    )
+    .catch(() => false);
 }
