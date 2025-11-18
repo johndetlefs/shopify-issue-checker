@@ -9,6 +9,7 @@ import { Page } from "@playwright/test";
 import { PageTarget } from "../types";
 import { logger } from "./logger";
 import { navigateWithFallback } from "./navigation";
+import { findFooter } from "./find-footer";
 
 export async function discoverTargets(
   page: Page,
@@ -109,6 +110,77 @@ export async function discoverTargets(
           error,
         });
       }
+    }
+
+    // 4. Discover legal pages dynamically from footer links
+    try {
+      await navigateWithFallback(page, effectiveBaseUrl, {
+        label: "Homepage (footer discovery)",
+        timeout: 12000,
+      });
+
+      const footer = await findFooter(page);
+
+      if (!footer) {
+        logger.warn("Footer not detected; skipping legal link discovery", {
+          url: effectiveBaseUrl,
+        });
+      } else {
+        const legalLinks = await footer.evaluate<{
+          privacy: { href: string; text: string } | null;
+          terms: { href: string; text: string } | null;
+        }>((footerEl: Element) => {
+          const anchors = Array.from(
+            footerEl.querySelectorAll("a[href]")
+          ) as HTMLAnchorElement[];
+
+          const getMatchString = (anchor: HTMLAnchorElement) =>
+            `${anchor.textContent || ""} ${
+              anchor.getAttribute("aria-label") || ""
+            }`
+              .toLowerCase()
+              .trim();
+
+          const toResult = (anchor: HTMLAnchorElement | null) =>
+            anchor
+              ? {
+                  href: anchor.href,
+                  text:
+                    anchor.textContent?.trim() ||
+                    anchor.getAttribute("aria-label") ||
+                    anchor.href,
+                }
+              : null;
+
+          const privacyAnchor =
+            anchors.find((anchor) =>
+              getMatchString(anchor).includes("privacy")
+            ) || null;
+          const termsAnchor =
+            anchors.find((anchor) => {
+              const match = getMatchString(anchor);
+              return match.includes("terms") || match.includes("condition");
+            }) || null;
+
+          return {
+            privacy: toResult(privacyAnchor),
+            terms: toResult(termsAnchor),
+          };
+        });
+
+        if (legalLinks.privacy) {
+          addTarget(legalLinks.privacy.href, "Privacy Policy");
+        }
+
+        if (legalLinks.terms) {
+          addTarget(legalLinks.terms.href, "Terms of Service");
+        }
+      }
+    } catch (error) {
+      logger.warn("Failed to discover legal links from footer", {
+        url: effectiveBaseUrl,
+        error,
+      });
     }
   } catch (error) {
     logger.error("Error during target discovery", error);

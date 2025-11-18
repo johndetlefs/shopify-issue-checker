@@ -16,16 +16,84 @@ export const skipLinkCheck: Check = {
     const { page, target } = context;
 
     try {
-      logger.info(`Checking skip-to-content link on ${target.label}`);
+      const skipLinkData = await page.evaluate(() => {
+        const focusableSelector =
+          'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])';
+        const focusable = Array.from(
+          document.querySelectorAll(focusableSelector)
+        ) as HTMLElement[];
 
-      // Look for common skip link patterns
-      const skipLink = await page
-        .locator('a[href="#main"], a[href="#content"], a[href="#main-content"]')
-        .first();
-      const skipLinkExists = (await skipLink.count()) > 0;
+        const keywordMatcher = (value: string | null | undefined) =>
+          (value || "").toLowerCase().includes("skip");
 
-      if (!skipLinkExists) {
-        // Issue: No skip link found
+        const candidates = focusable
+          .filter((el) => {
+            const tag = el.tagName.toLowerCase();
+            if (tag !== "a" && tag !== "button") return false;
+
+            const text = el.textContent?.trim().toLowerCase() || "";
+            const ariaLabel = el.getAttribute("aria-label")?.toLowerCase();
+            const title = el.getAttribute("title")?.toLowerCase();
+            const className = el.className?.toLowerCase();
+
+            const hasSkipKeyword =
+              keywordMatcher(text) ||
+              keywordMatcher(ariaLabel) ||
+              keywordMatcher(title) ||
+              keywordMatcher(className);
+
+            if (!hasSkipKeyword) return false;
+
+            if (tag === "a") {
+              const href = el.getAttribute("href") || "";
+              const normalizedHref = href.trim();
+
+              if (normalizedHref.startsWith("#") && normalizedHref.length > 1) {
+                return true;
+              }
+
+              // Allow JS-based skip links such as "javascript:OpenChat()"
+              if (normalizedHref.toLowerCase().startsWith("javascript:")) {
+                return true;
+              }
+
+              return false;
+            }
+
+            return true; // Buttons that mention skip
+          })
+          .map((el) => {
+            const href = el.getAttribute("href") || "";
+            const targetId = href.startsWith("#") ? href.slice(1) : null;
+
+            return {
+              outerHTML: el.outerHTML,
+              text: el.textContent?.trim() || "",
+              href,
+              targetId,
+              targetExists: targetId
+                ? Boolean(document.getElementById(targetId))
+                : null,
+              focusableIndex: focusable.indexOf(el),
+              matchesMainTarget: Boolean(
+                targetId && /main|content|primary/i.test(targetId)
+              ),
+            };
+          });
+
+        return {
+          candidates,
+          firstFocusableIndex: focusable.length > 0 ? 0 : -1,
+          firstFocusableHTML: focusable[0]?.outerHTML || null,
+        };
+      });
+
+      const primarySkipLink =
+        skipLinkData.candidates.find(
+          (candidate) => candidate.matchesMainTarget
+        ) || skipLinkData.candidates[0];
+
+      if (!primarySkipLink) {
         issues.push({
           id: `skip-link-missing-${Date.now()}`,
           title: "Missing Skip-to-Content Link",
@@ -67,9 +135,7 @@ Requirements:
 
 WCAG Success Criterion: 2.4.1 Bypass Blocks (Level A)`,
           rawData: {
-            selector:
-              'a[href="#main"], a[href="#content"], a[href="#main-content"]',
-            found: false,
+            candidatesFound: skipLinkData.candidates.length,
           },
         });
 
@@ -77,23 +143,11 @@ WCAG Success Criterion: 2.4.1 Bypass Blocks (Level A)`,
         return issues;
       }
 
-      // Skip link exists - now test its functionality
-      logger.info("Skip link found, testing functionality...");
-
-      // Check if it's the first focusable element
-      const firstFocusable = await page.evaluate(() => {
-        const focusable = Array.from(
-          document.querySelectorAll(
-            'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
-          )
-        ) as HTMLElement[];
-        return focusable[0]?.outerHTML || null;
+      logger.info("Skip link found, testing functionality", {
+        candidate: primarySkipLink.outerHTML,
       });
 
-      const skipLinkHTML = await skipLink.evaluate((el) => el.outerHTML);
-      const isFirstFocusable = firstFocusable === skipLinkHTML;
-
-      if (!isFirstFocusable) {
+      if (primarySkipLink.focusableIndex !== 0) {
         issues.push({
           id: `skip-link-not-first-${Date.now()}`,
           title: "Skip Link Not First Focusable Element",
@@ -117,47 +171,41 @@ Requirements:
 3. In Shopify theme.liquid, place it at the very top of the body content
 4. Verify by pressing Tab once on page load - skip link should receive focus first`,
           rawData: {
-            skipLinkHTML,
-            firstFocusableHTML: firstFocusable,
-            isFirstFocusable: false,
+            skipLinkHTML: primarySkipLink.outerHTML,
+            focusableIndex: primarySkipLink.focusableIndex,
+            firstFocusableHTML: skipLinkData.firstFocusableHTML,
           },
         });
       }
 
-      // Test if the target exists and link navigates properly
-      const href = await skipLink.getAttribute("href");
-      if (href) {
-        const targetId = href.replace("#", "");
-        const targetExists = (await page.locator(`#${targetId}`).count()) > 0;
-
-        if (!targetExists) {
-          issues.push({
-            id: `skip-link-broken-target-${Date.now()}`,
-            title: "Skip Link Target Does Not Exist",
-            description: `The skip link points to "${href}" but no element with that ID exists on the page. The link is non-functional.`,
-            severity: "serious",
-            impact: "litigation",
-            effort: "low",
-            wcagCriteria: ["2.4.1"],
-            path: target.url,
-            solution: `Add id="${targetId}" to the main content container (typically the <main> element). Ensure it also has tabindex="-1" to receive programmatic focus.`,
-            copilotPrompt: `You are fixing: Skip link broken target (WCAG 2.4.1)
+      if (primarySkipLink.targetId && primarySkipLink.targetExists === false) {
+        const href = `#${primarySkipLink.targetId}`;
+        issues.push({
+          id: `skip-link-broken-target-${Date.now()}`,
+          title: "Skip Link Target Does Not Exist",
+          description: `The skip link points to "${href}" but no element with that ID exists on the page. The link is non-functional.`,
+          severity: "serious",
+          impact: "litigation",
+          effort: "low",
+          wcagCriteria: ["2.4.1"],
+          path: target.url,
+          solution: `Add id="${primarySkipLink.targetId}" to the main content container (typically the <main> element). Ensure it also has tabindex="-1" to receive programmatic focus.`,
+          copilotPrompt: `You are fixing: Skip link broken target (WCAG 2.4.1)
 Target page: ${target.url}
 
 The skip link points to "${href}" but the target element doesn't exist.
 
 Requirements:
 1. Find the main content container (usually <main> or the primary content div)
-2. Add id="${targetId}" to that element
-3. Add tabindex="-1" to make it programmatically focusable: <main id="${targetId}" tabindex="-1">
+2. Add id="${primarySkipLink.targetId}" to that element
+3. Add tabindex="-1" to make it programmatically focusable: <main id="${primarySkipLink.targetId}" tabindex="-1">
 4. Optionally add focus management JavaScript to move focus to the target on click`,
-            rawData: {
-              href,
-              targetId,
-              targetExists: false,
-            },
-          });
-        }
+          rawData: {
+            href,
+            targetId: primarySkipLink.targetId,
+            targetExists: primarySkipLink.targetExists,
+          },
+        });
       }
 
       // If no issues found, skip link is working correctly

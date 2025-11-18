@@ -273,32 +273,102 @@ WCAG Success Criteria: 2.1.1 Keyboard (Level A), 2.5.5 Target Size (Level AAA)`,
 
         // Check 2: Missing focus indicators
         if (!hasMissingFocusIndicator) {
-          const missingFocusIndicators = await page.evaluate(() => {
-            const focusableInNav = Array.from(
-              document.querySelectorAll("nav a, nav button")
-            );
-            const missing = focusableInNav.filter((el) => {
-              const styles = window.getComputedStyle(el);
-              // Check if outline is removed
-              const hasOutlineNone =
-                styles.outline === "none" ||
-                styles.outline === "0px" ||
-                styles.outlineWidth === "0px";
-
-              // Check for alternative focus styles
-              const hasFocusVisible = el.matches(":focus-visible");
-              const hasBoxShadow = styles.boxShadow !== "none";
-              const hasBorder = styles.borderWidth !== "0px";
-              const hasBackground =
-                styles.backgroundColor !== "transparent" &&
-                styles.backgroundColor !== "rgba(0, 0, 0, 0)";
-
-              const hasAlternativeFocusStyle =
-                hasBoxShadow || hasBorder || hasBackground;
-
-              return hasOutlineNone && !hasAlternativeFocusStyle;
+          try {
+            await page.keyboard.press("Tab");
+            await page.keyboard.press("Shift+Tab");
+            await page.waitForTimeout(50);
+          } catch (error) {
+            logger.warn("Unable to prime keyboard modality for focus test", {
+              error: error instanceof Error ? error.message : String(error),
             });
-            return missing.length;
+          }
+
+          const missingFocusIndicators = await nav.evaluate((navEl) => {
+            const focusable = Array.from(
+              navEl.querySelectorAll("a, button")
+            ) as HTMLElement[];
+
+            const visibleFocusable = focusable.filter((el) => {
+              const rect = el.getBoundingClientRect();
+              const styles = window.getComputedStyle(el);
+              return (
+                rect.width > 0 &&
+                rect.height > 0 &&
+                styles.visibility !== "hidden" &&
+                styles.display !== "none"
+              );
+            });
+
+            const previousActive = document.activeElement as HTMLElement | null;
+            let missing = 0;
+
+            visibleFocusable.forEach((el) => {
+              if (typeof el.focus === "function") {
+                try {
+                  el.focus({ preventScroll: true } as FocusOptions);
+                } catch {
+                  el.focus();
+                }
+              }
+              const nodesToInspect: HTMLElement[] = [el];
+              let ancestor = el.parentElement;
+              while (ancestor && nodesToInspect.length < 6) {
+                nodesToInspect.push(ancestor as HTMLElement);
+                if (ancestor === navEl) break;
+                ancestor = ancestor.parentElement;
+              }
+
+              const hasIndicator = nodesToInspect.some((node) => {
+                const styles = window.getComputedStyle(node);
+
+                const outlineWidth = parseFloat(styles.outlineWidth || "0");
+                const outlineVisible =
+                  styles.outlineStyle !== "none" &&
+                  styles.outlineColor !== "rgba(0, 0, 0, 0)" &&
+                  outlineWidth >= 1;
+
+                const boxShadow = styles.boxShadow || "";
+                const hasBoxShadow =
+                  boxShadow !== "none" && boxShadow.trim().length > 0;
+
+                const borderWidth = parseFloat(styles.borderWidth || "0");
+                const borderIndicator =
+                  borderWidth >= 1 &&
+                  styles.borderStyle !== "none" &&
+                  styles.borderColor !== "rgba(0, 0, 0, 0)";
+
+                const backgroundColor = styles.backgroundColor;
+                const backgroundIndicator =
+                  backgroundColor !== "transparent" &&
+                  backgroundColor !== "rgba(0, 0, 0, 0)";
+
+                const textDecoration = styles.textDecorationLine || "";
+                const textIndicator = textDecoration.includes("underline");
+
+                return (
+                  outlineVisible ||
+                  hasBoxShadow ||
+                  borderIndicator ||
+                  backgroundIndicator ||
+                  textIndicator
+                );
+              });
+
+              if (!hasIndicator) {
+                missing += 1;
+              }
+            });
+
+            if (previousActive && typeof previousActive.focus === "function") {
+              previousActive.focus();
+            } else if (
+              document.body &&
+              typeof document.body.focus === "function"
+            ) {
+              document.body.focus();
+            }
+
+            return missing;
           });
 
           if (missingFocusIndicators > 0) {
